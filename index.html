@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VTplot Web</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex;flex-direction:column}
+#top-bar{background:#d0d8e0;padding:5px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #b0b8c8;flex-shrink:0;flex-wrap:wrap}
+.top-btn{padding:3px 10px;font-size:12px;cursor:pointer;border:1px solid #aaa;border-radius:3px;background:#d0c4e8}
+.top-btn:hover{background:#b8a4d4}
+.top-btn:disabled{opacity:.5;cursor:default}
+#btn-clear-ann{background:#e8dcc4}
+#btn-clear-ann:hover:not(:disabled){background:#d4c4a4}
+#file-label{padding:3px 10px;background:#c4dcf2;border:1px solid #aaa;border-radius:3px;font-size:12px;cursor:pointer}
+#file-label:hover{background:#88b8e8}
+#kind-select{font-size:12px;padding:2px 4px;border:1px solid #aaa;border-radius:3px}
+#main{flex:1;display:flex;gap:6px;padding:6px;overflow:hidden;min-height:0}
+#plot-wrapper{flex:1;background:white;border-radius:2px;overflow:hidden;min-width:0;position:relative}
+#plot{width:100%;height:100%;display:none}
+#upload-prompt{display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:14px;color:#888}
+#upload-prompt .drop-label{padding:14px 28px;background:#c4dcf2;border:2px dashed #88b8e8;border-radius:6px;cursor:pointer;font-size:15px;color:#336;text-align:center}
+#upload-prompt .drop-label:hover{background:#88b8e8}
+#right-panel{width:278px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;min-height:0}
+#channels-panel{flex:1;background:#f8f8f8;border:1px solid #aaa;border-radius:2px;overflow-y:auto;min-height:0;display:flex;flex-direction:column}
+.panel-hdr{padding:5px 8px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ddd;background:#f8f8f8;position:sticky;top:0;z-index:1;flex-shrink:0}
+.panel-hdr-title{font-weight:bold;font-size:11px;color:#333}
+#cursor-freq{font-size:12px;font-weight:bold;color:#bbb}
+#lock-status{font-size:10px;color:#cc4400;font-weight:bold;padding:2px 8px;min-height:15px;flex-shrink:0}
+#ch-subhdr{display:flex;justify-content:space-between;padding:2px 8px;font-size:10px;color:#888;border-bottom:1px solid #eee;flex-shrink:0}
+#channels-list{overflow-y:auto}
+.ch-row{display:flex;align-items:center;padding:4px 8px;cursor:pointer;border-bottom:1px solid #eee;gap:6px;user-select:none}
+.ch-row:hover{background:#eee}
+.ch-swatch{width:16px;height:13px;border-radius:2px;border:1px solid #555;flex-shrink:0;transition:background .1s}
+.ch-name{flex:1;font-size:11px;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch-val{font-size:11px;font-family:Consolas,monospace;min-width:90px;text-align:right;white-space:nowrap}
+#axis-panel{background:#f8f8f8;border:1px solid #aaa;border-radius:2px;padding:8px;flex-shrink:0}
+.ap-title{font-weight:bold;font-size:11px;color:#333;text-align:center;margin-bottom:6px}
+.rl{font-size:11px;color:#444;margin:4px 0 2px}
+.rrow{display:flex;align-items:center;gap:4px}
+.rrow input{flex:1;padding:2px 4px;font-size:11px;border:1px solid #ccc;border-radius:2px;text-align:center;width:0}
+.rsep{font-size:13px;color:#666;flex-shrink:0}
+.scale-row{display:flex;gap:8px;margin-top:6px}
+.scale-grp{flex:1}
+.scale-lbl{font-size:10px;color:#444;margin-bottom:2px}
+.scale-btns{display:flex;gap:2px}
+.sbtn{flex:1;padding:3px 0;font-size:11px;border:1px solid #bbb;border-radius:2px;background:#ddd;cursor:pointer}
+.sbtn:hover{background:#bbb}
+.sbtn.active{background:#88b8e8;border-color:#4488cc}
+.act-row{display:flex;gap:4px;margin-top:6px}
+.act-btn{flex:1;padding:4px 0;font-size:11px;border:1px solid #aaa;border-radius:3px;cursor:pointer;background:#eee}
+#btn-apply{background:#c4dcf2}
+#btn-apply:hover{background:#88b8e8}
+#btn-save{background:#c4f2c4}
+#btn-save:hover{background:#88d888}
+/* Modal */
+#res-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+#res-modal.open{display:flex}
+#res-box{background:#fafafa;border-radius:4px;width:640px;max-width:95vw;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 4px 24px rgba(0,0,0,.3)}
+#res-title{padding:10px 16px;font-weight:bold;font-size:14px;color:#1144aa;border-bottom:1px solid #ddd;flex-shrink:0}
+#res-body{flex:1;overflow-y:auto;padding:10px 16px;font-family:Consolas,monospace;font-size:12px;line-height:1.6;white-space:pre-wrap}
+#res-footer{padding:6px 12px;background:#ebebeb;border-top:1px solid #ddd;display:flex;justify-content:space-between;flex-shrink:0}
+#res-footer button{padding:4px 12px;font-size:12px;cursor:pointer;border:1px solid #aaa;border-radius:3px;background:#f0f0f0}
+#res-footer button:hover{background:#ddd}
+.ev-check{color:#116611}
+.ev-no{color:#aa2222}
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <strong style="font-size:13px">VTplot Web</strong>
+  <span style="color:#bbb">|</span>
+  <label id="file-label">ファイル選択…
+    <input type="file" id="file-input" multiple accept=".txt,*" style="display:none">
+  </label>
+  <span style="color:#bbb">|</span>
+  <label style="font-size:12px">Graph Type:</label>
+  <select id="kind-select" disabled><option>— ファイルを選択 —</option></select>
+  <button id="btn-resonance" class="top-btn" disabled>共振解析</button>
+  <button id="btn-clear-ann" class="top-btn" disabled>アノテーション削除</button>
+</div>
+
+<div id="main">
+  <div id="plot-wrapper">
+    <div id="upload-prompt">
+      <div style="font-size:16px;color:#666">振動データファイルをドロップ、または選択</div>
+      <label class="drop-label">📂 ファイルを選択 (.txt, 複数可)
+        <input type="file" id="file-input2" multiple accept=".txt,*" style="display:none">
+      </label>
+      <div style="font-size:12px;color:#aaa">DataKind / Frequency / X-AxisUnit / Y-AxisUnit ヘッダー形式対応</div>
+    </div>
+    <div id="plot"></div>
+  </div>
+
+  <div id="right-panel">
+    <div id="channels-panel">
+      <div class="panel-hdr">
+        <span class="panel-hdr-title">Channels &amp; Cursor</span>
+        <span id="cursor-freq">—</span>
+      </div>
+      <div id="lock-status"></div>
+      <div id="ch-subhdr"><span>Ch</span><span>@ Cursor</span></div>
+      <div id="channels-list"></div>
+    </div>
+
+    <div id="axis-panel">
+      <div class="ap-title">Axis Range &amp; Scale</div>
+      <div class="rl">X range (Hz)</div>
+      <div class="rrow">
+        <input id="tb-xmin" type="text" placeholder="min">
+        <span class="rsep">–</span>
+        <input id="tb-xmax" type="text" placeholder="max">
+      </div>
+      <div class="rl">Y range (blank = auto)</div>
+      <div class="rrow">
+        <input id="tb-ymin" type="text" placeholder="min">
+        <span class="rsep">–</span>
+        <input id="tb-ymax" type="text" placeholder="max">
+      </div>
+      <div class="scale-row">
+        <div class="scale-grp">
+          <div class="scale-lbl">X scale</div>
+          <div class="scale-btns">
+            <button class="sbtn" id="btn-xlog">Log</button>
+            <button class="sbtn" id="btn-xlin">Lin</button>
+          </div>
+        </div>
+        <div class="scale-grp">
+          <div class="scale-lbl">Y scale</div>
+          <div class="scale-btns">
+            <button class="sbtn" id="btn-ylog">Log</button>
+            <button class="sbtn" id="btn-ylin">Lin</button>
+          </div>
+        </div>
+      </div>
+      <div class="act-row">
+        <button class="act-btn" id="btn-apply">Apply</button>
+        <button class="act-btn" id="btn-save">Save PNG</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="res-modal">
+  <div id="res-box">
+    <div id="res-title">共振解析結果</div>
+    <div id="res-body"></div>
+    <div id="res-footer">
+      <button id="btn-copy-res">テキストをコピー</button>
+      <button id="btn-close-res">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── Constants ────────────────────────────────────────────────────────────────
+const TAB10 = ['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd',
+               '#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'];
+const KIND_LABEL = {PSD:'PSD',FRF_Real:'FRF Real',FRF_Imag:'FRF Imag',
+                    FRF_Mag:'FRF Mag',FRF_Phase:'FRF Phase',Coherence:'Coherence'};
+const KIND_ORDER = ['PSD','FRF_Real','FRF_Imag','FRF_Mag','FRF_Phase','Coherence'];
+const DEFAULT_YSCALE = {PSD:'log',FRF_Real:'linear',FRF_Imag:'linear',
+                        FRF_Mag:'log',FRF_Phase:'linear',Coherence:'linear'};
+const STARS = ['','★','★★','★★★','★★★★','★★★★★'];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let allData = {};        // kind -> [{meta, freqs, vals, ch, color}]
+let availKinds = [];
+let curKind = null;
+let chVisible = {};      // ch -> bool
+let chColors = {};       // ch -> hex
+let xScales = {};        // kind -> 'log'|'linear'
+let yScales = {};        // kind -> 'log'|'linear'
+let axisRanges = {};     // kind -> {xmin,xmax,ymin,ymax}
+let cursorLocked = false;
+let lockedFreq = null;
+let resonanceResults = null;
+
+// ── Math helpers ──────────────────────────────────────────────────────────────
+function median(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a,b)=>a-b), m = s.length>>1;
+  return s.length&1 ? s[m] : (s[m-1]+s[m])/2;
+}
+function stdDev(arr) {
+  if (arr.length<2) return 0;
+  const mn = arr.reduce((a,b)=>a+b,0)/arr.length;
+  return Math.sqrt(arr.reduce((s,v)=>s+(v-mn)**2,0)/arr.length);
+}
+function bisect(arr, x) {
+  let lo=0, hi=arr.length;
+  while (lo<hi){const mid=(lo+hi)>>1; if(arr[mid]<x) lo=mid+1; else hi=mid;}
+  return lo;
+}
+function interp1d(x, xs, ys) {
+  if (!xs.length) return NaN;
+  if (x<=xs[0]) return ys[0];
+  if (x>=xs[xs.length-1]) return ys[ys.length-1];
+  const i = bisect(xs,x)-1, t=(x-xs[i])/(xs[i+1]-xs[i]);
+  return ys[i]+t*(ys[i+1]-ys[i]);
+}
+
+// ── Peak finding ──────────────────────────────────────────────────────────────
+function findPeaks(arr, {prominence=0, distance=1}={}) {
+  const raw=[];
+  for (let i=1;i<arr.length-1;i++) {
+    if (arr[i]>arr[i-1]&&arr[i]>=arr[i+1]) raw.push(i);
+  }
+  const withProm = raw.map(pi=>{
+    const pv=arr[pi];
+    let lb=pv; for(let i=pi-1;i>=0;i--){lb=Math.min(lb,arr[i]);if(arr[i]>pv)break;}
+    let rb=pv; for(let i=pi+1;i<arr.length;i++){rb=Math.min(rb,arr[i]);if(arr[i]>pv)break;}
+    return {pi, prom:pv-Math.max(lb,rb)};
+  }).filter(p=>p.prom>=prominence);
+  // distance filter (greedy, keep highest prominence)
+  withProm.sort((a,b)=>b.prom-a.prom);
+  const keep=[];
+  for (const p of withProm) {
+    if (!keep.some(k=>Math.abs(p.pi-k.pi)<distance)) keep.push(p);
+  }
+  return keep.sort((a,b)=>a.pi-b.pi);
+}
+
+// ── File parsing ──────────────────────────────────────────────────────────────
+function parseVtFile(text) {
+  const meta={}, freqs=[], vals=[];
+  for (const raw of text.split(/\r?\n/)) {
+    const line=raw.trim(); if(!line) continue;
+    const parts=line.split(',').map(s=>s.trim());
+    if (parts[0].endsWith(':')&&parts.length>1) {
+      const k=parts[0].slice(0,-1), rest=parts.slice(1);
+      if (k==='DataKind') { meta.channel=rest[0]||''; meta.graph_type=rest[1]||''; meta.sub_type=rest[2]||''; }
+      else if (k==='Frequency') { meta.freq_min=parseFloat(rest[0]); meta.freq_max=parseFloat(rest[1]); }
+      else if (k==='X-AxisUnit') meta.x_unit=rest[0];
+      else if (k==='Y-AxisUnit') meta.y_unit=rest[0];
+      continue;
+    }
+    if (parts.length>=2) {
+      const f=parseFloat(parts[0]),v=parseFloat(parts[1]);
+      if (!isNaN(f)&&!isNaN(v)) {freqs.push(f);vals.push(v);}
+    }
+  }
+  return {meta,freqs,vals};
+}
+
+function classify(meta) {
+  const g=(meta.graph_type||'').toLowerCase(), s=(meta.sub_type||'').toLowerCase();
+  if (g.includes('powerspec')) return 'PSD';
+  if (g.includes('frf')) {
+    if (s.includes('real')) return 'FRF_Real';
+    if (s.includes('imag')) return 'FRF_Imag';
+    if (s.includes('phase')) return 'FRF_Phase';
+    return 'FRF_Mag';
+  }
+  if (g.includes('coherence')||g==='coh') return 'Coherence';
+  return 'Unknown';
+}
+
+// ── File loading ──────────────────────────────────────────────────────────────
+async function loadFiles(fileList) {
+  for (const file of fileList) {
+    const text = await file.text();
+    const {meta,freqs,vals} = parseVtFile(text);
+    if (!freqs.length) continue;
+    const kind = classify(meta);
+    const ch = meta.channel || file.name;
+    if (!chColors[ch]) chColors[ch] = TAB10[Object.keys(chColors).length % 10];
+    if (chVisible[ch]===undefined) chVisible[ch]=true;
+    if (!allData[kind]) allData[kind]=[];
+    allData[kind].push({meta,freqs,vals,ch,color:chColors[ch]});
+  }
+  availKinds = KIND_ORDER.filter(k=>allData[k]);
+  for (const k of availKinds) {
+    if (!xScales[k]) xScales[k]='log';
+    if (!yScales[k]) yScales[k]=DEFAULT_YSCALE[k]||'linear';
+    if (!axisRanges[k]) axisRanges[k]={xmin:'',xmax:'',ymin:'',ymax:''};
+  }
+  if (!curKind||!availKinds.includes(curKind)) curKind=availKinds[0]||null;
+  if (!curKind) return;
+
+  // Update kind selector
+  const sel=document.getElementById('kind-select');
+  sel.innerHTML='';
+  for (const k of availKinds) {
+    const o=document.createElement('option');
+    o.value=k; o.textContent=KIND_LABEL[k]; sel.appendChild(o);
+  }
+  sel.value=curKind; sel.disabled=false;
+  document.getElementById('btn-resonance').disabled=false;
+  document.getElementById('btn-clear-ann').disabled=false;
+  document.getElementById('upload-prompt').style.display='none';
+  document.getElementById('plot').style.display='block';
+
+  rebuildChannelPanel();
+  syncInputs();
+  redraw();
+  attachPlotlyEvents();
+}
+
+// ── Resonance analysis ────────────────────────────────────────────────────────
+function findResonances(freqRange=null) {
+  const indexed={};
+  for (const [kind,entries] of Object.entries(allData)) {
+    for (const e of entries) {
+      if (!indexed[e.ch]) indexed[e.ch]={};
+      indexed[e.ch][kind]=e;
+    }
+  }
+  const results=[];
+  for (const [ch, kinds] of Object.entries(indexed)) {
+    const primary = kinds.FRF_Mag?'FRF_Mag':kinds.PSD?'PSD':null;
+    if (!primary) continue;
+    const src=kinds[primary];
+    let freqs, vals;
+    if (freqRange) {
+      const [lo,hi]=freqRange;
+      const idx=src.freqs.reduce((a,f,i)=>{if(f>=lo&&f<=hi)a.push(i);return a;},[]);
+      freqs=idx.map(i=>src.freqs[i]); vals=idx.map(i=>src.vals[i]);
+    } else { freqs=[...src.freqs]; vals=[...src.vals]; }
+    if (freqs.length<10) continue;
+    const valid=freqs.map((f,i)=>vals[i]>0&&f>0);
+    if (valid.filter(Boolean).length<5) continue;
+    const logMin=Math.min(...vals.filter((_,i)=>valid[i]).map(v=>Math.log10(v)))-1;
+    const logF=vals.map((v,i)=>valid[i]?Math.log10(v):logMin);
+    const n=freqs.length, minDist=Math.max(3,Math.floor(n/200));
+    const rawPeaks=findPeaks(logF,{prominence:0.3,distance:minDist});
+    if (!rawPeaks.length) continue;
+    for (const {pi,prom} of rawPeaks.sort((a,b)=>b.prom-a.prom).slice(0,15)) {
+      const freq=freqs[pi], mag=vals[pi];
+      const win=Math.max(10,Math.floor(n/15));
+      const nbrs=[...vals.slice(Math.max(0,pi-win),pi),...vals.slice(pi+1,Math.min(n,pi+win+1))].filter(v=>v>0);
+      const bg=nbrs.length?median(nbrs):mag;
+      const ratio=bg>0?mag/bg:1;
+      if (ratio<1.5) continue;
+      const ev=[]; let score=0;
+      score+=ratio>=10?2:1;
+      ev.push(`${primary} ピーク: ${mag.toExponential(3)}  (背景の ${ratio.toFixed(1)} 倍) ${ratio>=10?'★★':'★'}`);
+
+      if (kinds.FRF_Phase) {
+        const {freqs:pf,vals:pv}=kinds.FRF_Phase;
+        const ph=interp1d(freq,pf,pv);
+        const near90=Math.abs(Math.abs(ph)-90)<45;
+        const srch=Math.max(3,Math.floor(pf.length*0.025));
+        const ci=bisect(pf,freq);
+        const i0=Math.max(0,ci-srch),i1=Math.min(pf.length-1,ci+srch);
+        const phChg=Math.abs(interp1d(pf[i1],pf,pv)-interp1d(pf[i0],pf,pv));
+        const cross=phChg>60;
+        const notes=[]; if(near90)notes.push('±90°付近'); if(cross)notes.push(`位相変化 ${phChg.toFixed(0)}°`);
+        ev.push(`FRF Phase  ${ph.toFixed(1)}° @ ${freq.toFixed(1)} Hz${notes.length?' ('+notes.join(', ')+' ✓)':''}`);
+        if(near90&&cross)score+=2; else if(near90||cross)score+=1;
+      }
+      if (kinds.FRF_Imag) {
+        const {freqs:imf,vals:imv}=kinds.FRF_Imag;
+        const sd=stdDev(imv);
+        if (sd>0) {
+          const pp=[...findPeaks(imv,{prominence:sd*0.3}).map(p=>p.pi),
+                    ...findPeaks(imv.map(v=>-v),{prominence:sd*0.3}).map(p=>p.pi)];
+          if (pp.length) {
+            const near=pp.reduce((b,i)=>Math.abs(imf[i]-freq)<Math.abs(imf[b]-freq)?i:b);
+            const hit=Math.abs(imf[near]-freq)/(freq+1e-9)<0.05;
+            ev.push(`FRF Imag   ピーク: ${imf[near].toFixed(1)} Hz ${hit?'✓':'(5%超)'}`);
+            if(hit)score+=1;
+          }
+        }
+      }
+      if (kinds.FRF_Real) {
+        const {freqs:rf,vals:rv}=kinds.FRF_Real;
+        const ci2=bisect(rf,freq), srch2=Math.max(3,Math.floor(rf.length*0.025));
+        const seg=rv.slice(Math.max(0,ci2-srch2),Math.min(rv.length,ci2+srch2+1));
+        let zc=false;
+        for(let i=0;i<seg.length-1;i++){if(Math.sign(seg[i])!==Math.sign(seg[i+1])&&seg[i]!==0){zc=true;break;}}
+        ev.push(`FRF Real   ゼロクロス @ ${freq.toFixed(1)} Hz ${zc?'✓':'×'}`); if(zc)score+=1;
+      }
+      if (kinds.Coherence) {
+        const {freqs:cf,vals:cv}=kinds.Coherence;
+        const coh=Math.min(1,Math.max(0,interp1d(freq,cf,cv)));
+        const q=coh>=0.9?'高':coh>=0.7?'中':'低';
+        ev.push(`Coherence  ${coh.toFixed(3)} @ ${freq.toFixed(1)} Hz (信頼性: ${q})${coh>=0.8?'  ✓':''}`);
+        if(coh>=0.8)score+=1;
+      }
+      if (primary!=='PSD'&&allData.PSD) {
+        for (const {freqs:pf2,vals:pv2} of allData.PSD) {
+          const gd=pv2.filter(v=>v>0); if(!gd.length)continue;
+          const lm=Math.log10(Math.min(...gd))-1;
+          const lv=pv2.map(v=>v>0?Math.log10(v):lm);
+          const pp2=findPeaks(lv,{prominence:0.2}).map(p=>p.pi); if(!pp2.length)continue;
+          const near=pp2.reduce((b,i)=>Math.abs(pf2[i]-freq)<Math.abs(pf2[b]-freq)?i:b);
+          if(Math.abs(pf2[near]-freq)/(freq+1e-9)<0.05){ev.push(`PSD ピーク一致: ${pf2[near].toFixed(1)} Hz ✓`);score+=1;break;}
+        }
+      }
+      // Half-power bandwidth
+      const hp=mag/Math.sqrt(2); let f1=null,f2=null;
+      for(let i=pi-1;i>=0;i--){if(vals[i]<=hp){const d=vals[i+1]-vals[i];f1=Math.abs(d)>1e-30?freqs[i]+(hp-vals[i])/d*(freqs[i+1]-freqs[i]):freqs[i];break;}}
+      for(let i=pi+1;i<vals.length;i++){if(vals[i]<=hp){const d=vals[i]-vals[i-1];f2=Math.abs(d)>1e-30?freqs[i-1]+(hp-vals[i-1])/d*(freqs[i]-freqs[i-1]):freqs[i];break;}}
+      if(f1!==null&&f2!==null&&f2>f1){const bw=f2-f1;ev.push(`半値帯域幅  ${bw.toFixed(2)} Hz (-3 dB) → 減衰比 ζ = ${(bw/(2*freq)*100).toFixed(2)} %`);}
+
+      results.push({freq,ch,primary,score,prominence:prom,ratio,color:src.color,evidence:ev});
+    }
+  }
+  return results.sort((a,b)=>(b.score-a.score)||(b.prominence-a.prominence));
+}
+
+// ── Plotly helpers ────────────────────────────────────────────────────────────
+function buildLayout() {
+  const k=curKind, r=axisRanges[k]||{};
+  const xs=xScales[k]||'log', ys=yScales[k]||'linear';
+  const meta0=allData[k]?.[0]?.meta||{};
+  const xUnit=meta0.x_unit||'Hz', yUnit=meta0.y_unit||'', sub=meta0.sub_type||'';
+  const yLabel=yUnit?`${sub} (${yUnit})`:sub||'Value';
+
+  const layout={
+    title:{text:KIND_LABEL[k]||k,font:{size:14}},
+    xaxis:{title:`Frequency (${xUnit})`,type:xs==='log'?'log':'linear',gridcolor:'#ddd',showgrid:true,griddash:'dash'},
+    yaxis:{title:yLabel,type:ys==='log'?'log':'linear',gridcolor:'#ddd',showgrid:true,griddash:'dash'},
+    margin:{l:65,r:20,t:46,b:50},
+    hovermode:'x',showlegend:false,
+    plot_bgcolor:'#fff',paper_bgcolor:'#fff',
+    shapes:[],annotations:[],
+  };
+  // X range
+  const xmin=parseFloat(r.xmin), xmax=parseFloat(r.xmax);
+  if (!isNaN(xmin)&&!isNaN(xmax)&&xmax>xmin) {
+    layout.xaxis.range=xs==='log'?[Math.log10(Math.max(xmin,1e-99)),Math.log10(xmax)]:[xmin,xmax];
+  } else {
+    const entries=allData[k]||[];
+    let fmin=Infinity,fmax=-Infinity;
+    for(const e of entries){
+      const fm=isNaN(e.meta.freq_min)?e.freqs[0]:e.meta.freq_min;
+      const fx=isNaN(e.meta.freq_max)?e.freqs[e.freqs.length-1]:e.meta.freq_max;
+      fmin=Math.min(fmin,fm); fmax=Math.max(fmax,fx);
+    }
+    if(isFinite(fmin)&&isFinite(fmax)&&fmin<fmax){
+      const lo=Math.max(fmin,0.1);
+      layout.xaxis.range=xs==='log'?[Math.log10(lo),Math.log10(fmax)]:[lo,fmax];
+    }
+  }
+  // Y range
+  const ymin=parseFloat(r.ymin), ymax=parseFloat(r.ymax);
+  if(!isNaN(ymin)&&!isNaN(ymax)&&ymax>ymin){
+    layout.yaxis.range=ys==='log'?[Math.log10(Math.max(ymin,1e-99)),Math.log10(ymax)]:[ymin,ymax];
+  } else if(!isNaN(ymin)){
+    layout.yaxis.range=[ys==='log'?Math.log10(Math.max(ymin,1e-99)):ymin, undefined];
+  } else if(!isNaN(ymax)){
+    layout.yaxis.range=[undefined, ys==='log'?Math.log10(ymax):ymax];
+  }
+  // Resonance annotations
+  if (resonanceResults) {
+    resonanceResults.forEach((r2,i)=>{
+      const alpha=Math.min(0.18+r2.score*0.07,0.75);
+      layout.shapes.push({type:'line',x0:r2.freq,x1:r2.freq,y0:0,y1:1,yref:'paper',
+        line:{color:r2.color,width:1,dash:'dot'},opacity:alpha});
+      layout.annotations.push({x:r2.freq,y:1,yref:'paper',
+        text:`[${i+1}] ${r2.freq.toFixed(0)}Hz`,showarrow:false,textangle:-90,
+        font:{size:9,color:r2.color},xanchor:'center',yanchor:'top'});
+    });
+  }
+  // Locked cursor line
+  if (cursorLocked&&lockedFreq!==null) {
+    layout.shapes.push({type:'line',x0:lockedFreq,x1:lockedFreq,y0:0,y1:1,yref:'paper',
+      line:{color:'#e05000',width:1.5,dash:'dash'}});
+  }
+  return layout;
+}
+
+function buildTraces() {
+  return (allData[curKind]||[]).map(e=>({
+    x:e.freqs, y:e.vals, name:e.ch, type:'scatter', mode:'lines',
+    line:{color:e.color,width:1},
+    visible:chVisible[e.ch]!==false,
+    hovertemplate:`%{y:.3e}<extra>${e.ch}</extra>`,
+  }));
+}
+
+function redraw() {
+  if (!curKind) return;
+  const ys=yScales[curKind]||'linear';
+  // disable log if negative values
+  if (ys==='log') {
+    const hasNeg=(allData[curKind]||[]).some(e=>e.vals.some(v=>v<=0));
+    if (hasNeg) { yScales[curKind]='linear'; }
+  }
+  Plotly.react('plot', buildTraces(), buildLayout(),
+    {responsive:true,displayModeBar:true,modeBarButtonsToRemove:['lasso2d','select2d','autoScale2d']});
+  updateScaleButtons();
+}
+
+let eventsAttached=false;
+function attachPlotlyEvents() {
+  if (eventsAttached) return; eventsAttached=true;
+  const plotDiv=document.getElementById('plot');
+  plotDiv.on('plotly_hover', ev=>{
+    if (cursorLocked) return;
+    const pt=ev.points[0]; if(!pt) return;
+    const x=pt.x; updateCursorAt(x,false);
+  });
+  plotDiv.on('plotly_unhover', ()=>{
+    if (cursorLocked) return;
+    document.getElementById('cursor-freq').textContent='—';
+    document.getElementById('cursor-freq').style.color='#bbb';
+    resetChVals();
+  });
+  plotDiv.on('plotly_click', ev=>{
+    const pt=ev.points[0]; if(!pt) return;
+    const x=pt.x;
+    if (cursorLocked) {
+      cursorLocked=false; lockedFreq=null;
+      document.getElementById('lock-status').textContent='';
+      document.getElementById('cursor-freq').style.color='#bbb';
+      document.getElementById('cursor-freq').textContent='—';
+      resetChVals();
+      Plotly.relayout('plot',{shapes:buildLayout().shapes,annotations:buildLayout().annotations});
+    } else {
+      cursorLocked=true; lockedFreq=x;
+      document.getElementById('lock-status').textContent='LOCKED — クリックで解除';
+      updateCursorAt(x,true);
+      Plotly.relayout('plot',buildLayout());
+    }
+  });
+  // relayoutでxrange変更されたときも検知(zoom)
+  plotDiv.on('plotly_relayout', ev=>{
+    if (!ev) return;
+    // if user zoomed, reflect in our inputs
+    const ax=document.getElementById('plot').layout?.xaxis;
+    if (!ax) return;
+    // we don't forcefully update inputs on zoom, user applies manually
+  });
+}
+
+function updateCursorAt(x, locked) {
+  const col=locked?'#cc4400':'#1155cc';
+  document.getElementById('cursor-freq').textContent=`${x.toFixed(2)} Hz`;
+  document.getElementById('cursor-freq').style.color=col;
+  const entries=allData[curKind]||[];
+  for (const e of entries) {
+    if (chVisible[e.ch]===false) continue;
+    const id=`chval-${CSS.escape(e.ch)}`;
+    const el=document.getElementById(id); if(!el) continue;
+    const v=interp1d(x,e.freqs,e.vals);
+    const u=e.meta.y_unit||'';
+    el.textContent=isNaN(v)?'—':`${v.toExponential(3)}${u?' '+u:''}`;
+  }
+}
+
+function resetChVals() {
+  document.querySelectorAll('.ch-val').forEach(el=>el.textContent='—');
+}
+
+// ── Channel panel ─────────────────────────────────────────────────────────────
+function rebuildChannelPanel() {
+  const list=document.getElementById('channels-list');
+  list.innerHTML='';
+  if (!curKind) return;
+  const seen=new Set();
+  for (const e of (allData[curKind]||[])) {
+    if (seen.has(e.ch)) continue; seen.add(e.ch);
+    const vis=chVisible[e.ch]!==false;
+    const row=document.createElement('div'); row.className='ch-row'; row.dataset.ch=e.ch;
+    const sw=document.createElement('div'); sw.className='ch-swatch';
+    sw.style.background=vis?e.color:'#ccc'; sw.style.borderColor=vis?'#333':'#aaa';
+    const nm=document.createElement('span'); nm.className='ch-name'; nm.textContent=e.ch; nm.style.opacity=vis?'1':'0.35';
+    const vl=document.createElement('span'); vl.className='ch-val';
+    vl.id=`chval-${CSS.escape(e.ch)}`; vl.textContent='—'; vl.style.color=e.color; vl.style.opacity=vis?'1':'0.35';
+    row.append(sw,nm,vl);
+    row.addEventListener('click',()=>toggleCh(e.ch));
+    list.appendChild(row);
+  }
+}
+
+function toggleCh(ch) {
+  chVisible[ch]=chVisible[ch]===false?true:false;
+  const vis=chVisible[ch];
+  document.querySelectorAll(`.ch-row[data-ch]`).forEach(row=>{
+    if(row.dataset.ch!==ch) return;
+    row.querySelector('.ch-swatch').style.background=vis?chColors[ch]:'#ccc';
+    row.querySelector('.ch-swatch').style.borderColor=vis?'#333':'#aaa';
+    row.querySelector('.ch-name').style.opacity=vis?'1':'0.35';
+    row.querySelector('.ch-val').style.opacity=vis?'1':'0.35';
+  });
+  const indices=(allData[curKind]||[]).reduce((a,e,i)=>{if(e.ch===ch)a.push(i);return a;},[]);
+  if (indices.length) Plotly.restyle('plot',{visible:vis===false?false:true},indices);
+}
+
+// ── Scale buttons ─────────────────────────────────────────────────────────────
+function updateScaleButtons() {
+  if (!curKind) return;
+  const xs=xScales[curKind], ys=yScales[curKind];
+  document.getElementById('btn-xlog').classList.toggle('active',xs==='log');
+  document.getElementById('btn-xlin').classList.toggle('active',xs==='linear');
+  document.getElementById('btn-ylog').classList.toggle('active',ys==='log');
+  document.getElementById('btn-ylin').classList.toggle('active',ys==='linear');
+}
+
+// ── Axis inputs sync ──────────────────────────────────────────────────────────
+function saveInputs() {
+  if (!curKind) return;
+  axisRanges[curKind]={
+    xmin:document.getElementById('tb-xmin').value,
+    xmax:document.getElementById('tb-xmax').value,
+    ymin:document.getElementById('tb-ymin').value,
+    ymax:document.getElementById('tb-ymax').value,
+  };
+}
+function syncInputs() {
+  if (!curKind) return;
+  const r=axisRanges[curKind]||{};
+  document.getElementById('tb-xmin').value=r.xmin||'';
+  document.getElementById('tb-xmax').value=r.xmax||'';
+  document.getElementById('tb-ymin').value=r.ymin||'';
+  document.getElementById('tb-ymax').value=r.ymax||'';
+}
+
+// ── Resonance result modal ────────────────────────────────────────────────────
+function showResonanceModal(results) {
+  let txt=`共振解析結果 ── ${results.length} 件検出\n${'─'.repeat(60)}\n\n`;
+  results.forEach((r,i)=>{
+    txt+=`[${i+1}]  ${r.freq.toFixed(2)} Hz   ${r.ch}   ${STARS[Math.min(r.score,5)]}\n`;
+    r.evidence.forEach(line=>{ txt+=`     ${line}\n`; });
+    txt+='\n';
+  });
+  const body=document.getElementById('res-body');
+  body.innerHTML='';
+  const lines=txt.split('\n');
+  for (const line of lines) {
+    const span=document.createElement('span');
+    span.className=line.includes('✓')?'ev-check':line.includes('×')?'ev-no':'';
+    span.textContent=line+'\n';
+    body.appendChild(span);
+  }
+  document.getElementById('res-title').textContent=`共振解析結果 — ${results.length} 件検出`;
+  document.getElementById('res-modal').classList.add('open');
+  document.getElementById('btn-copy-res')._txt=txt;
+}
+
+// ── Event wiring ──────────────────────────────────────────────────────────────
+function handleFiles(fileList) { if(fileList.length) loadFiles(fileList); }
+
+document.getElementById('file-input').addEventListener('change',e=>handleFiles(e.target.files));
+document.getElementById('file-input2').addEventListener('change',e=>handleFiles(e.target.files));
+
+// Drag & drop on plot-wrapper
+const wrapper=document.getElementById('plot-wrapper');
+wrapper.addEventListener('dragover',e=>{e.preventDefault();wrapper.style.outline='2px dashed #88b8e8';});
+wrapper.addEventListener('dragleave',()=>wrapper.style.outline='');
+wrapper.addEventListener('drop',e=>{
+  e.preventDefault(); wrapper.style.outline='';
+  handleFiles(e.dataTransfer.files);
+});
+
+document.getElementById('kind-select').addEventListener('change',e=>{
+  saveInputs();
+  curKind=e.target.value;
+  syncInputs();
+  rebuildChannelPanel();
+  resetChVals();
+  cursorLocked=false; lockedFreq=null;
+  document.getElementById('lock-status').textContent='';
+  document.getElementById('cursor-freq').textContent='—';
+  document.getElementById('cursor-freq').style.color='#bbb';
+  redraw();
+});
+
+document.getElementById('btn-resonance').addEventListener('click',()=>{
+  const btn=document.getElementById('btn-resonance');
+  btn.textContent='解析中…'; btn.disabled=true;
+  setTimeout(()=>{
+    try {
+      const plotDiv=document.getElementById('plot');
+      const layout=plotDiv.layout||{};
+      const xax=layout.xaxis||{};
+      let freqRange=null;
+      if (xax.range) {
+        const r=xax.range;
+        if (xScales[curKind]==='log') {
+          freqRange=[10**r[0],10**r[1]];
+        } else {
+          freqRange=[r[0],r[1]];
+        }
+      }
+      const res=findResonances(freqRange);
+      if (!res.length) { alert('有意なピークが検出されませんでした。'); return; }
+      resonanceResults=res;
+      redraw();
+      showResonanceModal(res);
+    } finally {
+      btn.textContent='共振解析'; btn.disabled=false;
+    }
+  },20);
+});
+
+document.getElementById('btn-clear-ann').addEventListener('click',()=>{
+  resonanceResults=null; redraw();
+});
+
+document.getElementById('btn-xlog').addEventListener('click',()=>{ if(curKind){xScales[curKind]='log'; redraw();} });
+document.getElementById('btn-xlin').addEventListener('click',()=>{ if(curKind){xScales[curKind]='linear'; redraw();} });
+document.getElementById('btn-ylog').addEventListener('click',()=>{ if(curKind){yScales[curKind]='log'; redraw();} });
+document.getElementById('btn-ylin').addEventListener('click',()=>{ if(curKind){yScales[curKind]='linear'; redraw();} });
+
+document.getElementById('btn-apply').addEventListener('click',()=>{ saveInputs(); redraw(); });
+['tb-xmin','tb-xmax','tb-ymin','tb-ymax'].forEach(id=>{
+  document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter'){saveInputs();redraw();} });
+});
+
+document.getElementById('btn-save').addEventListener('click',()=>{
+  if (!curKind) return;
+  Plotly.downloadImage('plot',{format:'png',filename:`VTplot_${curKind}`,width:1400,height:700});
+});
+
+document.getElementById('btn-close-res').addEventListener('click',()=>{
+  document.getElementById('res-modal').classList.remove('open');
+});
+document.getElementById('btn-copy-res').addEventListener('click',function(){
+  const txt=this._txt||document.getElementById('res-body').innerText;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const orig=this.textContent; this.textContent='コピーしました';
+    setTimeout(()=>this.textContent=orig,1500);
+  });
+});
+document.getElementById('res-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('res-modal'))
+    document.getElementById('res-modal').classList.remove('open');
+});
+</script>
+</body>
+</html>
