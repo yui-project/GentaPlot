@@ -1,3 +1,9 @@
 # GentaPlot
-振動試験の結果をプロットするWEBアプリ
-a
+ONOSOKKI DS2000（Graduo）で記録した波形データ（txtファイル）をプロットするWebアプリ
+
+対応グラフ種：PSD、FRF（Real / Imag / Mag / Phase）、Coherence（その他のグラフ種は動作未検証）
+
+主な機能
+- X / Y軸の表示範囲変更、log / lin スケール切り替え
+- チャンネルごとの表示 / 非表示切り替え
+- 主要ピーク検出機能（試験的実装）

@@ -80,7 +80,7 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
   <span style="color:#bbb">|</span>
   <label style="font-size:12px">Graph Type:</label>
   <select id="kind-select" disabled><option>— ファイルを選択 —</option></select>
-  <button id="btn-resonance" class="top-btn" disabled>共振解析</button>
+  <button id="btn-resonance" class="top-btn" disabled>ピーク解析</button>
   <button id="btn-clear-ann" class="top-btn" disabled>アノテーション削除</button>
 </div>
 
@@ -147,7 +147,7 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
 
 <div id="res-modal">
   <div id="res-box">
-    <div id="res-title">共振解析結果</div>
+    <div id="res-title">ピーク解析結果</div>
     <div id="res-body"></div>
     <div id="res-footer">
       <button id="btn-copy-res">テキストをコピー</button>
@@ -416,8 +416,10 @@ function buildLayout() {
 
   const layout={
     title:{text:KIND_LABEL[k]||k,font:{size:14}},
-    xaxis:{title:`Frequency (${xUnit})`,type:xs==='log'?'log':'linear',gridcolor:'#ddd',showgrid:true,griddash:'dash'},
-    yaxis:{title:yLabel,type:ys==='log'?'log':'linear',gridcolor:'#ddd',showgrid:true,griddash:'dash'},
+    xaxis:{title:`Frequency (${xUnit})`,type:xs==='log'?'log':'linear',gridcolor:'#ddd',showgrid:true,
+           ...(xs==='log'?{exponentformat:'none',minor:{showgrid:true,gridcolor:'#e8e8e8',ticks:'',dtick:'D1'}}:{})},
+    yaxis:{title:yLabel,type:ys==='log'?'log':'linear',gridcolor:'#ddd',showgrid:true,
+           ...(ys==='log'?{exponentformat:'none',minor:{showgrid:true,gridcolor:'#e8e8e8',ticks:'',dtick:'D1'}}:{})},
     margin:{l:65,r:20,t:46,b:50},
     hovermode:'x',showlegend:false,
     plot_bgcolor:'#fff',paper_bgcolor:'#fff',
@@ -455,9 +457,11 @@ function buildLayout() {
       const alpha=Math.min(0.18+r2.score*0.07,0.75);
       layout.shapes.push({type:'line',x0:r2.freq,x1:r2.freq,y0:0,y1:1,yref:'paper',
         line:{color:r2.color,width:1,dash:'dot'},opacity:alpha});
-      layout.annotations.push({x:r2.freq,y:1,yref:'paper',
+      // y:1 (paper top) + yshift:-52px → 6px below the 46px title margin, inside plot area
+      layout.annotations.push({x:r2.freq,xref:'x',y:1,yref:'paper',yshift:-52,
         text:`[${i+1}] ${r2.freq.toFixed(0)}Hz`,showarrow:false,textangle:-90,
-        font:{size:9,color:r2.color},xanchor:'center',yanchor:'top'});
+        font:{size:9,color:r2.color},xanchor:'center',yanchor:'top',
+        bgcolor:'rgba(255,255,255,0.5)',borderpad:2,cliponaxis:false});
     });
   }
   // Locked cursor line
@@ -617,7 +621,7 @@ function syncInputs() {
 
 // ── Resonance result modal ────────────────────────────────────────────────────
 function showResonanceModal(results) {
-  let txt=`共振解析結果 ── ${results.length} 件検出\n${'─'.repeat(60)}\n\n`;
+  let txt=`ピーク解析結果 ── ${results.length} 件検出\n${'─'.repeat(60)}\n\n`;
   results.forEach((r,i)=>{
     txt+=`[${i+1}]  ${r.freq.toFixed(2)} Hz   ${r.ch}   ${STARS[Math.min(r.score,5)]}\n`;
     r.evidence.forEach(line=>{ txt+=`     ${line}\n`; });
@@ -632,7 +636,7 @@ function showResonanceModal(results) {
     span.textContent=line+'\n';
     body.appendChild(span);
   }
-  document.getElementById('res-title').textContent=`共振解析結果 — ${results.length} 件検出`;
+  document.getElementById('res-title').textContent=`ピーク解析結果 — ${results.length} 件検出`;
   document.getElementById('res-modal').classList.add('open');
   document.getElementById('btn-copy-res')._txt=txt;
 }
@@ -688,7 +692,7 @@ document.getElementById('btn-resonance').addEventListener('click',()=>{
       redraw();
       showResonanceModal(res);
     } finally {
-      btn.textContent='共振解析'; btn.disabled=false;
+      btn.textContent='ピーク解析'; btn.disabled=false;
     }
   },20);
 });
