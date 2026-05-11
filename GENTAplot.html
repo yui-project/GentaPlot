@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VTplot Web</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
@@ -711,9 +712,21 @@ document.getElementById('btn-apply').addEventListener('click',()=>{ saveInputs()
   document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter'){saveInputs();redraw();} });
 });
 
-document.getElementById('btn-save').addEventListener('click',()=>{
+document.getElementById('btn-save').addEventListener('click', async ()=>{
   if (!curKind) return;
-  Plotly.downloadImage('plot',{format:'png',filename:`VTplot_${curKind}`,width:1400,height:700});
+  const btn = document.getElementById('btn-save');
+  btn.textContent='保存中…'; btn.disabled=true;
+  try {
+    const canvas = await html2canvas(document.getElementById('main'),{
+      backgroundColor:'#e0e0e0', scale:2, logging:false, useCORS:true, allowTaint:true
+    });
+    const a = document.createElement('a');
+    a.download = `VTplot_${curKind}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  } finally {
+    btn.textContent='Save PNG'; btn.disabled=false;
+  }
 });
 
 document.getElementById('btn-close-res').addEventListener('click',()=>{
