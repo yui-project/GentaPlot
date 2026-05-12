@@ -68,6 +68,48 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
 #res-footer button:hover{background:#ddd}
 .ev-check{color:#116611}
 .ev-no{color:#aa2222}
+/* Vib Profile */
+#btn-vib-profile{background:#c8eac8}
+#btn-vib-profile:hover:not(:disabled){background:#a0d4a0}
+#vib-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+#vib-modal.open{display:flex}
+#vib-box{background:#fafafa;border-radius:4px;width:500px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 4px 24px rgba(0,0,0,.3)}
+#vib-title{padding:10px 16px;font-weight:bold;font-size:14px;color:#115511;border-bottom:1px solid #ddd;flex-shrink:0}
+#vib-body{flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.vib-pts-hdr{display:grid;grid-template-columns:1fr 1fr 28px;gap:4px;font-size:10px;color:#888;padding:0 2px}
+#vib-tbody{display:flex;flex-direction:column;gap:3px}
+.vib-row{display:grid;grid-template-columns:1fr 1fr 28px;gap:4px;align-items:center}
+.vib-finput,.vib-pinput{padding:3px 5px;font-size:11px;border:1px solid #ccc;border-radius:2px;font-family:Consolas,monospace;text-align:right;width:100%}
+.vib-delbtn{padding:2px 4px;font-size:12px;border:1px solid #ccc;border-radius:2px;background:#faeaea;cursor:pointer;color:#883333}
+.vib-delbtn:hover{background:#f0cccc}
+#btn-vib-addrow{align-self:flex-start;padding:2px 10px;font-size:11px;border:1px solid #88aa88;border-radius:2px;background:#e8f5e8;cursor:pointer;color:#224422}
+#btn-vib-addrow:hover{background:#c8eac8}
+.vib-tol-row{display:flex;align-items:center;gap:6px;font-size:11px;color:#444;padding:6px 0 2px;border-top:1px solid #eee}
+.vib-tol-row input{width:54px;padding:2px 4px;border:1px solid #ccc;border-radius:2px;font-size:11px;text-align:center}
+#vib-result{background:#f4f4f4;border-radius:2px;padding:6px 8px;font-size:11px;min-height:16px;max-height:200px;overflow-y:auto}
+.vib-res-title{font-weight:bold;margin-bottom:4px;color:#333}
+.vib-res-row{display:grid;grid-template-columns:1fr 100px 130px 90px;gap:4px;padding:2px 0;border-bottom:1px solid #eee;font-family:Consolas,monospace;font-size:10.5px;align-items:center}
+.vib-res-row span:first-child{font-family:Arial,sans-serif;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vib-pass{color:#115511}.vib-fail{color:#aa2222}
+.vib-err{color:#aa2222;font-style:italic}
+#vib-footer{padding:6px 12px;background:#ebebeb;border-top:1px solid #ddd;display:flex;justify-content:flex-end;gap:6px;align-items:center;flex-shrink:0}
+#vib-footer button{padding:3px 10px;font-size:12px;cursor:pointer;border:1px solid #aaa;border-radius:3px;background:#f0f0f0}
+#vib-footer button:hover{background:#ddd}
+#btn-vib-apply{background:#c8eac8}
+#btn-vib-apply:hover{background:#a0d4a0}
+#btn-vib-check-top,#btn-vib-rms-top,#btn-vib-visible{background:#c8eac8}
+#btn-vib-check-top:hover:not(:disabled),#btn-vib-rms-top:hover:not(:disabled),#btn-vib-visible:hover:not(:disabled){background:#a0d4a0}
+#btn-vib-visible.vib-vis-on{background:#3faa5f;color:#fff;border-color:#2a7a40}
+#btn-vib-visible.vib-vis-on:hover:not(:disabled){background:#2d8048}
+/* Check / RMS result modals */
+#check-modal,#rms-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:210;align-items:center;justify-content:center}
+#check-modal.open,#rms-modal.open{display:flex}
+#check-box,#rms-box{background:#fafafa;border-radius:4px;width:540px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 4px 24px rgba(0,0,0,.3)}
+#check-title,#rms-title{padding:10px 16px;font-weight:bold;font-size:14px;color:#115511;border-bottom:1px solid #ddd;flex-shrink:0}
+#check-body,#rms-body{flex:1;overflow-y:auto;padding:10px 14px}
+#check-footer,#rms-footer{padding:6px 12px;background:#ebebeb;border-top:1px solid #ddd;display:flex;justify-content:flex-end;flex-shrink:0}
+#check-footer button,#rms-footer button{padding:4px 12px;font-size:12px;cursor:pointer;border:1px solid #aaa;border-radius:3px;background:#f0f0f0}
+#check-footer button:hover,#rms-footer button:hover{background:#ddd}
 </style>
 </head>
 <body>
@@ -81,6 +123,10 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
   <span style="color:#bbb">|</span>
   <label style="font-size:12px">Graph Type:</label>
   <select id="kind-select" disabled><option>— ファイルを選択 —</option></select>
+  <button id="btn-vib-profile" class="top-btn" disabled>加振プロファイル</button>
+  <button id="btn-vib-check-top" class="top-btn" disabled>許容範囲チェック</button>
+  <button id="btn-vib-rms-top" class="top-btn" disabled>RMS 算出</button>
+  <button id="btn-vib-visible" class="top-btn vib-vis-on" disabled>プロファイル ON</button>
   <button id="btn-resonance" class="top-btn" disabled>ピーク解析</button>
   <button id="btn-clear-ann" class="top-btn" disabled>アノテーション削除</button>
 </div>
@@ -157,6 +203,47 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
   </div>
 </div>
 
+<div id="vib-modal">
+  <div id="vib-box">
+    <div id="vib-title">加振プロファイル <span style="font-size:11px;color:#666;font-weight:normal">— PSD のみ有効 / log–log 線形補間</span></div>
+    <div id="vib-body">
+      <div class="vib-pts-hdr"><span>Freq (Hz)</span><span>PSD 値</span><span></span></div>
+      <div id="vib-tbody"></div>
+      <button id="btn-vib-addrow">＋ 点を追加</button>
+      <div class="vib-tol-row">
+        <span>許容幅</span>
+        <span>+</span><input id="vib-db-plus" type="number" value="3" min="0" step="0.5">
+        <span>dB &nbsp;−</span><input id="vib-db-minus" type="number" value="3" min="0" step="0.5">
+        <span>dB（帯表示・チェックに使用）</span>
+      </div>
+    </div>
+    <div id="vib-footer">
+      <button id="btn-vib-apply">適用</button>
+      <button id="btn-vib-close">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div id="check-modal">
+  <div id="check-box">
+    <div id="check-title">許容範囲チェック</div>
+    <div id="check-body"></div>
+    <div id="check-footer">
+      <button id="btn-close-check">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div id="rms-modal">
+  <div id="rms-box">
+    <div id="rms-title">RMS 算出</div>
+    <div id="rms-body"></div>
+    <div id="rms-footer">
+      <button id="btn-close-rms">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -182,6 +269,10 @@ let axisRanges = {};     // kind -> {xmin,xmax,ymin,ymax}
 let cursorLocked = false;
 let lockedFreq = null;
 let resonanceResults = null;
+let vibProfile = [];       // [{freq, psd}] sorted by freq
+let vibTolPlus = 3;
+let vibTolMinus = 3;
+let vibProfileVisible = true;
 
 // ── Math helpers ──────────────────────────────────────────────────────────────
 function median(arr) {
@@ -295,6 +386,12 @@ async function loadFiles(fileList) {
   sel.value=curKind; sel.disabled=false;
   document.getElementById('btn-resonance').disabled=false;
   document.getElementById('btn-clear-ann').disabled=false;
+  if(availKinds.includes('PSD')){
+    document.getElementById('btn-vib-profile').disabled=false;
+    document.getElementById('btn-vib-check-top').disabled=false;
+    document.getElementById('btn-vib-rms-top').disabled=false;
+    document.getElementById('btn-vib-visible').disabled=false;
+  }
   document.getElementById('upload-prompt').style.display='none';
   document.getElementById('plot').style.display='block';
 
@@ -407,6 +504,134 @@ function findResonances(freqRange=null) {
   return results.sort((a,b)=>(b.score-a.score)||(b.prominence-a.prominence));
 }
 
+// ── Vibration Profile ─────────────────────────────────────────────────────────
+function vibInterp(f) {
+  const pts=vibProfile;
+  if(!pts.length) return null;
+  if(f<=pts[0].freq) return pts[0].psd;
+  if(f>=pts[pts.length-1].freq) return pts[pts.length-1].psd;
+  let lo=0,hi=pts.length-1;
+  while(hi-lo>1){const m=(lo+hi)>>1;if(pts[m].freq<=f)lo=m;else hi=m;}
+  const t=(Math.log10(f)-Math.log10(pts[lo].freq))/(Math.log10(pts[hi].freq)-Math.log10(pts[lo].freq));
+  return Math.pow(10,Math.log10(pts[lo].psd)+t*(Math.log10(pts[hi].psd)-Math.log10(pts[lo].psd)));
+}
+
+function calcRMS(freqs,vals) {
+  let s=0;
+  for(let i=0;i<freqs.length-1;i++){const df=freqs[i+1]-freqs[i];if(df>0)s+=(vals[i]+vals[i+1])/2*df;}
+  return Math.sqrt(Math.max(s,0));
+}
+
+function calcProfileRMS(fmin,fmax) {
+  if(vibProfile.length<2) return NaN;
+  const lo=Math.max(fmin,vibProfile[0].freq),hi=Math.min(fmax,vibProfile[vibProfile.length-1].freq);
+  if(hi<=lo) return NaN;
+  const N=2000,fs=[],vs=[];
+  for(let i=0;i<=N;i++){const f=Math.pow(10,Math.log10(lo)+(Math.log10(hi)-Math.log10(lo))*i/N);fs.push(f);vs.push(vibInterp(f));}
+  return calcRMS(fs,vs);
+}
+
+function openVibModal() {
+  rebuildVibTable();
+  document.getElementById('vib-db-plus').value=vibTolPlus;
+  document.getElementById('vib-db-minus').value=vibTolMinus;
+  document.getElementById('vib-modal').classList.add('open');
+}
+
+function rebuildVibTable() {
+  const tbody=document.getElementById('vib-tbody');
+  tbody.innerHTML='';
+  const pts=vibProfile.length?vibProfile:[{freq:'',psd:''},{freq:'',psd:''}];
+  for(const p of pts) addVibRow(p.freq!==undefined&&p.freq!==''?p.freq:'',p.psd!==undefined&&p.psd!==''?p.psd:'');
+}
+
+function addVibRow(freq='',psd='') {
+  const tbody=document.getElementById('vib-tbody');
+  const row=document.createElement('div');row.className='vib-row';
+  const fi=document.createElement('input');fi.type='text';fi.className='vib-finput';fi.value=freq;fi.placeholder='例: 10';
+  const pi=document.createElement('input');pi.type='text';pi.className='vib-pinput';pi.value=psd;pi.placeholder='例: 1e-4';
+  const db=document.createElement('button');db.className='vib-delbtn';db.textContent='×';
+  db.addEventListener('click',()=>row.remove());
+  row.append(fi,pi,db);
+  tbody.appendChild(row);
+}
+
+function readVibRows() {
+  const pts=[];
+  for(const row of document.getElementById('vib-tbody').children){
+    const f=parseFloat(row.children[0].value),p=parseFloat(row.children[1].value);
+    if(!isNaN(f)&&!isNaN(p)&&f>0&&p>0) pts.push({freq:f,psd:p});
+  }
+  return pts.sort((a,b)=>a.freq-b.freq);
+}
+
+function applyVibAndRedraw() {
+  vibProfile=readVibRows();
+  vibTolPlus=parseFloat(document.getElementById('vib-db-plus').value)||3;
+  vibTolMinus=parseFloat(document.getElementById('vib-db-minus').value)||3;
+  redraw();
+}
+
+function runVibCheck() {
+  const el=document.getElementById('check-body');
+  if(vibProfile.length<2){
+    el.innerHTML='<div class="vib-err">有効なプロファイルが設定されていません。先に「加振プロファイル」を設定・適用してください。</div>';
+    document.getElementById('check-modal').classList.add('open'); return;
+  }
+  const tolP=vibTolPlus,tolM=vibTolMinus;
+  const data=allData['PSD']||[];
+  if(!data.length){
+    el.innerHTML='<div class="vib-err">PSD データがありません</div>';
+    document.getElementById('check-modal').classList.add('open'); return;
+  }
+  let html=`<div class="vib-res-title">許容範囲チェック &nbsp;+${tolP} dB / −${tolM} dB</div>`;
+  for(const e of data){
+    let maxDevP=0,maxDevM=0,failCnt=0,total=0;
+    for(let i=0;i<e.freqs.length;i++){
+      const f=e.freqs[i],v=e.vals[i];
+      if(f<vibProfile[0].freq||f>vibProfile[vibProfile.length-1].freq) continue;
+      const ref=vibInterp(f);
+      if(!ref||ref<=0||v<=0) continue;
+      total++;
+      const dev=10*Math.log10(v/ref);
+      if(dev>maxDevP) maxDevP=dev;
+      if(dev<maxDevM) maxDevM=dev;
+      if(dev>tolP||dev<-tolM) failCnt++;
+    }
+    if(!total) continue;
+    const pass=failCnt===0;
+    html+=`<div class="vib-res-row ${pass?'vib-pass':'vib-fail'}">`;
+    html+=`<span>${e.ch}</span><span>${pass?'✓ OK':'✗ NG'}</span>`;
+    html+=`<span>+${maxDevP.toFixed(1)} / ${maxDevM.toFixed(1)} dB</span>`;
+    html+=`<span>${failCnt?failCnt+'/'+total+' 点超過':''}</span></div>`;
+  }
+  el.innerHTML=html;
+  document.getElementById('check-modal').classList.add('open');
+}
+
+function runVibRMS() {
+  const el=document.getElementById('rms-body');
+  if(vibProfile.length<2){
+    el.innerHTML='<div class="vib-err">有効なプロファイルが設定されていません。先に「加振プロファイル」を設定・適用してください。</div>';
+    document.getElementById('rms-modal').classList.add('open'); return;
+  }
+  const pf0=vibProfile[0].freq,pfN=vibProfile[vibProfile.length-1].freq;
+  let html='<div class="vib-res-title">RMS 算出</div>';
+  const prms=calcProfileRMS(pf0,pfN);
+  if(!isNaN(prms))
+    html+=`<div class="vib-res-row"><span>加振プロファイル</span><span>${prms.toExponential(4)}</span><span>${pf0.toFixed(1)}–${pfN.toFixed(1)} Hz</span><span></span></div>`;
+  for(const e of (allData['PSD']||[])){
+    const f0=Math.max(e.freqs[0],pf0),f1=Math.min(e.freqs[e.freqs.length-1],pfN);
+    if(f1<=f0) continue;
+    const idx=e.freqs.reduce((a,f,i)=>{if(f>=f0&&f<=f1)a.push(i);return a;},[]);
+    if(idx.length<2) continue;
+    const rms=calcRMS(idx.map(i=>e.freqs[i]),idx.map(i=>e.vals[i]));
+    html+=`<div class="vib-res-row"><span>${e.ch}</span><span>${rms.toExponential(4)}</span><span>${f0.toFixed(1)}–${f1.toFixed(1)} Hz</span><span></span></div>`;
+  }
+  el.innerHTML=html;
+  document.getElementById('rms-modal').classList.add('open');
+}
+
 // ── Plotly helpers ────────────────────────────────────────────────────────────
 function buildLayout() {
   const k=curKind, r=axisRanges[k]||{};
@@ -474,12 +699,37 @@ function buildLayout() {
 }
 
 function buildTraces() {
-  return (allData[curKind]||[]).map(e=>({
+  const traces=(allData[curKind]||[]).map(e=>({
     x:e.freqs, y:e.vals, name:e.ch, type:'scatter', mode:'lines',
     line:{color:e.color,width:1},
     visible:chVisible[e.ch]!==false,
     hovertemplate:`%{y:.3e}<extra>${e.ch}</extra>`,
   }));
+  if(curKind==='PSD'&&vibProfile.length>=2&&vibProfileVisible){
+    const facPlus=Math.pow(10,vibTolPlus/10);
+    const facMinus=Math.pow(10,vibTolMinus/10);
+    const pf0=vibProfile[0].freq,pfN=vibProfile[vibProfile.length-1].freq;
+    // Tolerance band (filled region)
+    const N=400,bx=[],bu=[],bl=[];
+    for(let i=0;i<=N;i++){
+      const f=Math.pow(10,Math.log10(pf0)+(Math.log10(pfN)-Math.log10(pf0))*i/N);
+      const v=vibInterp(f); bx.push(f); bu.push(v*facPlus); bl.push(v/facMinus);
+    }
+    traces.push({
+      x:[...bx,...bx.slice().reverse()],y:[...bu,...bl.slice().reverse()],
+      fill:'toself',fillcolor:'rgba(34,170,68,0.10)',
+      line:{color:'rgba(34,170,68,0.25)',width:1},mode:'lines',
+      hoverinfo:'none',showlegend:false,type:'scatter',
+    });
+    // Profile line
+    traces.push({
+      x:vibProfile.map(p=>p.freq),y:vibProfile.map(p=>p.psd),
+      name:'加振プロファイル',type:'scatter',mode:'lines+markers',
+      line:{color:'#22aa44',width:2.5},marker:{color:'#22aa44',size:5},
+      hovertemplate:'%{y:.3e}<extra>加振プロファイル</extra>',
+    });
+  }
+  return traces;
 }
 
 function redraw() {
@@ -742,6 +992,40 @@ document.getElementById('btn-copy-res').addEventListener('click',function(){
 document.getElementById('res-modal').addEventListener('click',e=>{
   if(e.target===document.getElementById('res-modal'))
     document.getElementById('res-modal').classList.remove('open');
+});
+
+// ── Vibration Profile events ──────────────────────────────────────────────────
+document.getElementById('btn-vib-profile').addEventListener('click', openVibModal);
+document.getElementById('btn-vib-check-top').addEventListener('click', runVibCheck);
+document.getElementById('btn-vib-rms-top').addEventListener('click', runVibRMS);
+document.getElementById('btn-vib-visible').addEventListener('click', ()=>{
+  vibProfileVisible=!vibProfileVisible;
+  const btn=document.getElementById('btn-vib-visible');
+  btn.textContent=vibProfileVisible?'プロファイル ON':'プロファイル OFF';
+  btn.classList.toggle('vib-vis-on',vibProfileVisible);
+  redraw();
+});
+document.getElementById('btn-vib-addrow').addEventListener('click', ()=>addVibRow());
+document.getElementById('btn-vib-apply').addEventListener('click', ()=>{
+  applyVibAndRedraw();
+  document.getElementById('vib-modal').classList.remove('open');
+});
+document.getElementById('btn-vib-close').addEventListener('click', ()=>{
+  document.getElementById('vib-modal').classList.remove('open');
+});
+document.getElementById('vib-modal').addEventListener('click', e=>{
+  if(e.target===document.getElementById('vib-modal'))
+    document.getElementById('vib-modal').classList.remove('open');
+});
+document.getElementById('btn-close-check').addEventListener('click', ()=>document.getElementById('check-modal').classList.remove('open'));
+document.getElementById('check-modal').addEventListener('click', e=>{
+  if(e.target===document.getElementById('check-modal'))
+    document.getElementById('check-modal').classList.remove('open');
+});
+document.getElementById('btn-close-rms').addEventListener('click', ()=>document.getElementById('rms-modal').classList.remove('open'));
+document.getElementById('rms-modal').addEventListener('click', e=>{
+  if(e.target===document.getElementById('rms-modal'))
+    document.getElementById('rms-modal').classList.remove('open');
 });
 </script>
 </body>
