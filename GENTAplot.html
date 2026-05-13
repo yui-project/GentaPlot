@@ -110,6 +110,38 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
 #check-footer,#rms-footer{padding:6px 12px;background:#ebebeb;border-top:1px solid #ddd;display:flex;justify-content:flex-end;flex-shrink:0}
 #check-footer button,#rms-footer button{padding:4px 12px;font-size:12px;cursor:pointer;border:1px solid #aaa;border-radius:3px;background:#f0f0f0}
 #check-footer button:hover,#rms-footer button:hover{background:#ddd}
+/* Custom overlay graph */
+#btn-custom-add{background:#e8d4f8}
+#btn-custom-add:hover:not(:disabled){background:#d0b4e8}
+#btn-custom-delete{background:#f8d4d4;display:none}
+#btn-custom-delete:hover:not(:disabled){background:#e8b4b4}
+#custom-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:210;align-items:center;justify-content:center}
+#custom-modal.open{display:flex}
+#custom-box{background:#fafafa;border-radius:4px;width:560px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 4px 24px rgba(0,0,0,.3)}
+#custom-title{padding:10px 16px;font-weight:bold;font-size:14px;color:#441188;border-bottom:1px solid #ddd;flex-shrink:0}
+#custom-body{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.custom-name-row{display:flex;align-items:center;gap:8px;font-size:11px}
+.custom-name-row input{flex:1;padding:3px 6px;font-size:12px;border:1px solid #ccc;border-radius:2px}
+.custom-axis-block{border:1px solid #ddd;border-radius:3px;padding:8px}
+.custom-axis-hdr{font-weight:bold;font-size:11px;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #eee}
+.custom-axis-hdr.y1-hdr{color:#224488}
+.custom-axis-hdr.y2-hdr{color:#882244}
+.custom-kind-row{display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:5px}
+.custom-kind-row select{flex:1;font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:2px}
+.custom-ch-list{display:flex;flex-wrap:wrap;gap:4px;padding:5px;background:#f4f4f4;border-radius:2px;min-height:28px}
+.custom-ch-list label{display:flex;align-items:center;gap:3px;font-size:11px;white-space:nowrap;padding:2px 6px;border:1px solid #ddd;border-radius:2px;background:#fff;cursor:pointer}
+.custom-ch-list label:hover{background:#eee}
+#custom-footer{padding:6px 12px;background:#ebebeb;border-top:1px solid #ddd;display:flex;justify-content:flex-end;gap:6px;flex-shrink:0}
+#custom-footer button{padding:4px 12px;font-size:12px;cursor:pointer;border:1px solid #aaa;border-radius:3px;background:#f0f0f0}
+#custom-footer button:hover{background:#ddd}
+#btn-custom-save{background:#d8c4f8}
+#btn-custom-save:hover{background:#c0a4e8}
+/* Y2 axis panel section */
+#y2-section{display:none}
+/* Channel axis badges */
+.ch-axis-tag{font-size:9px;padding:1px 3px;border-radius:2px;font-weight:bold;flex-shrink:0}
+.ch-axis-y1{background:#c4dcf2;color:#224488}
+.ch-axis-y2{background:#f2c4dc;color:#882244}
 </style>
 </head>
 <body>
@@ -123,6 +155,9 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
   <span style="color:#bbb">|</span>
   <label style="font-size:12px">Graph Type:</label>
   <select id="kind-select" disabled><option>— ファイルを選択 —</option></select>
+  <button id="btn-custom-add" class="top-btn" disabled>＋ 任意追加</button>
+  <button id="btn-custom-delete" class="top-btn" disabled>カスタム削除</button>
+  <span style="color:#bbb">|</span>
   <button id="btn-vib-profile" class="top-btn" disabled>加振プロファイル</button>
   <button id="btn-vib-check-top" class="top-btn" disabled>許容範囲チェック</button>
   <button id="btn-vib-rms-top" class="top-btn" disabled>RMS 算出</button>
@@ -181,6 +216,23 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
           <div class="scale-btns">
             <button class="sbtn" id="btn-ylog">Log</button>
             <button class="sbtn" id="btn-ylin">Lin</button>
+          </div>
+        </div>
+      </div>
+      <div id="y2-section">
+        <div class="rl" style="color:#882244">Y2 range (blank = auto)</div>
+        <div class="rrow">
+          <input id="tb-y2min" type="text" placeholder="min">
+          <span class="rsep">–</span>
+          <input id="tb-y2max" type="text" placeholder="max">
+        </div>
+        <div class="scale-row">
+          <div class="scale-grp">
+            <div class="scale-lbl" style="color:#882244">Y2 scale</div>
+            <div class="scale-btns">
+              <button class="sbtn" id="btn-y2log">Log</button>
+              <button class="sbtn" id="btn-y2lin">Lin</button>
+            </div>
           </div>
         </div>
       </div>
@@ -244,6 +296,40 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
   </div>
 </div>
 
+<div id="custom-modal">
+  <div id="custom-box">
+    <div id="custom-title">任意グラフ追加</div>
+    <div id="custom-body">
+      <div class="custom-name-row">
+        <label for="custom-name-input">グラフ名</label>
+        <input id="custom-name-input" type="text" placeholder="例: PSD + FRF Mag">
+      </div>
+      <div class="custom-axis-block">
+        <div class="custom-axis-hdr y1-hdr">第1縦軸 (Y1 左)</div>
+        <div class="custom-kind-row">
+          <label>種類</label>
+          <select id="custom-left-kind"></select>
+        </div>
+        <div style="font-size:10px;color:#888;margin-bottom:3px">チャンネル選択（複数可）</div>
+        <div id="custom-left-chs" class="custom-ch-list"></div>
+      </div>
+      <div class="custom-axis-block">
+        <div class="custom-axis-hdr y2-hdr">第2縦軸 (Y2 右) — 省略可</div>
+        <div class="custom-kind-row">
+          <label>種類</label>
+          <select id="custom-right-kind"><option value="">— なし —</option></select>
+        </div>
+        <div style="font-size:10px;color:#888;margin-bottom:3px">チャンネル選択（複数可）</div>
+        <div id="custom-right-chs" class="custom-ch-list"></div>
+      </div>
+    </div>
+    <div id="custom-footer">
+      <button id="btn-custom-save">追加</button>
+      <button id="btn-custom-cancel">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -265,7 +351,8 @@ let chVisible = {};      // ch -> bool
 let chColors = {};       // ch -> hex
 let xScales = {};        // kind -> 'log'|'linear'
 let yScales = {};        // kind -> 'log'|'linear'
-let axisRanges = {};     // kind -> {xmin,xmax,ymin,ymax}
+let y2Scales = {};       // customId -> 'log'|'linear'
+let axisRanges = {};     // kind -> {xmin,xmax,ymin,ymax,y2min,y2max}
 let cursorLocked = false;
 let lockedFreq = null;
 let resonanceResults = null;
@@ -273,6 +360,9 @@ let vibProfile = [];       // [{freq, psd}] sorted by freq
 let vibTolPlus = 3;
 let vibTolMinus = 3;
 let vibProfileVisible = true;
+let customGraphs = [];   // [{id,name,left:{kind,chs[]},right:{kind,chs[]}}]
+let customNextId = 0;
+let customEditId = null;
 
 // ── Math helpers ──────────────────────────────────────────────────────────────
 function median(arr) {
@@ -297,6 +387,8 @@ function interp1d(x, xs, ys) {
   const i = bisect(xs,x)-1, t=(x-xs[i])/(xs[i+1]-xs[i]);
   return ys[i]+t*(ys[i+1]-ys[i]);
 }
+
+function isCustomKind(k) { return !!(k && k.startsWith('CUSTOM_')); }
 
 // ── Peak finding ──────────────────────────────────────────────────────────────
 function findPeaks(arr, {prominence=0, distance=1}={}) {
@@ -373,19 +465,13 @@ async function loadFiles(fileList) {
     if (!yScales[k]) yScales[k]=DEFAULT_YSCALE[k]||'linear';
     if (!axisRanges[k]) axisRanges[k]={xmin:'',xmax:'',ymin:'',ymax:''};
   }
-  if (!curKind||!availKinds.includes(curKind)) curKind=availKinds[0]||null;
+  if (!curKind || (!availKinds.includes(curKind) && !isCustomKind(curKind))) curKind=availKinds[0]||null;
   if (!curKind) return;
 
-  // Update kind selector
-  const sel=document.getElementById('kind-select');
-  sel.innerHTML='';
-  for (const k of availKinds) {
-    const o=document.createElement('option');
-    o.value=k; o.textContent=KIND_LABEL[k]; sel.appendChild(o);
-  }
-  sel.value=curKind; sel.disabled=false;
+  rebuildKindDropdown();
   document.getElementById('btn-resonance').disabled=false;
   document.getElementById('btn-clear-ann').disabled=false;
+  document.getElementById('btn-custom-add').disabled=false;
   if(availKinds.includes('PSD')){
     document.getElementById('btn-vib-profile').disabled=false;
     document.getElementById('btn-vib-check-top').disabled=false;
@@ -584,12 +670,22 @@ function runVibCheck() {
     el.innerHTML='<div class="vib-err">PSD データがありません</div>';
     document.getElementById('check-modal').classList.add('open'); return;
   }
-  let html=`<div class="vib-res-title">許容範囲チェック &nbsp;+${tolP} dB / −${tolM} dB</div>`;
+  // 現在表示中のX軸範囲とプロファイル範囲の交差をチェック対象とする
+  const xax=(document.getElementById('plot').layout||{}).xaxis||{};
+  const xs=xScales['PSD']||'log';
+  let fCheckMin=vibProfile[0].freq, fCheckMax=vibProfile[vibProfile.length-1].freq;
+  if (xax.range) {
+    const rMin=xs==='log'?Math.pow(10,xax.range[0]):xax.range[0];
+    const rMax=xs==='log'?Math.pow(10,xax.range[1]):xax.range[1];
+    fCheckMin=Math.max(fCheckMin,rMin);
+    fCheckMax=Math.min(fCheckMax,rMax);
+  }
+  let html=`<div class="vib-res-title">許容範囲チェック &nbsp;+${tolP} dB / −${tolM} dB &nbsp;<span style="font-size:10px;color:#666">(${fCheckMin.toFixed(1)}–${fCheckMax.toFixed(1)} Hz)</span></div>`;
   for(const e of data){
     let maxDevP=0,maxDevM=0,failCnt=0,total=0;
     for(let i=0;i<e.freqs.length;i++){
       const f=e.freqs[i],v=e.vals[i];
-      if(f<vibProfile[0].freq||f>vibProfile[vibProfile.length-1].freq) continue;
+      if(f<fCheckMin||f>fCheckMax) continue;
       const ref=vibInterp(f);
       if(!ref||ref<=0||v<=0) continue;
       total++;
@@ -619,44 +715,166 @@ function runVibRMS() {
   let html='<div class="vib-res-title">RMS 算出</div>';
   const prms=calcProfileRMS(pf0,pfN);
   if(!isNaN(prms))
-    html+=`<div class="vib-res-row"><span>加振プロファイル</span><span>${prms.toExponential(4)}</span><span>${pf0.toFixed(1)}–${pfN.toFixed(1)} Hz</span><span></span></div>`;
+    html+=`<div class="vib-res-row"><span>加振プロファイル</span><span>${prms.toExponential(4)}</span><span>${pf0.toFixed(1)}–${pfN.toFixed(1)} Hz</span><span style="color:#888">（基準）</span></div>`;
   for(const e of (allData['PSD']||[])){
     const f0=Math.max(e.freqs[0],pf0),f1=Math.min(e.freqs[e.freqs.length-1],pfN);
     if(f1<=f0) continue;
     const idx=e.freqs.reduce((a,f,i)=>{if(f>=f0&&f<=f1)a.push(i);return a;},[]);
     if(idx.length<2) continue;
     const rms=calcRMS(idx.map(i=>e.freqs[i]),idx.map(i=>e.vals[i]));
-    html+=`<div class="vib-res-row"><span>${e.ch}</span><span>${rms.toExponential(4)}</span><span>${f0.toFixed(1)}–${f1.toFixed(1)} Hz</span><span></span></div>`;
+    const pct=(!isNaN(prms)&&prms>0)?((rms-prms)/prms*100):NaN;
+    const pctStr=isNaN(pct)?'':`${pct>=0?'+':''}${pct.toFixed(1)}%`;
+    const pctColor=isNaN(pct)?'':pct>=0?'#aa4400':'#004488';
+    html+=`<div class="vib-res-row"><span>${e.ch}</span><span>${rms.toExponential(4)}</span><span>${f0.toFixed(1)}–${f1.toFixed(1)} Hz</span><span style="color:${pctColor}">${pctStr}</span></div>`;
   }
   el.innerHTML=html;
   document.getElementById('rms-modal').classList.add('open');
+}
+
+// ── Custom graph management ───────────────────────────────────────────────────
+function rebuildKindDropdown() {
+  const sel=document.getElementById('kind-select');
+  sel.innerHTML='';
+  for (const k of availKinds) {
+    const o=document.createElement('option'); o.value=k; o.textContent=KIND_LABEL[k]; sel.appendChild(o);
+  }
+  for (const cg of customGraphs) {
+    const o=document.createElement('option'); o.value=cg.id; o.textContent=cg.name; sel.appendChild(o);
+  }
+  if (curKind) sel.value=curKind;
+  sel.disabled=false;
+}
+
+function populateCustomChs(containerId, kind, selectedChs=[]) {
+  const container=document.getElementById(containerId);
+  container.innerHTML='';
+  if (!kind||!allData[kind]) return;
+  const chs=[...new Set(allData[kind].map(e=>e.ch))];
+  for (const ch of chs) {
+    const label=document.createElement('label');
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.value=ch;
+    cb.checked=selectedChs.length===0||selectedChs.includes(ch);
+    const sw=document.createElement('span');
+    sw.style.cssText=`display:inline-block;width:10px;height:10px;border-radius:2px;background:${chColors[ch]||'#888'};border:1px solid #555;vertical-align:middle;margin-right:2px`;
+    label.append(cb,sw,` ${ch}`);
+    container.appendChild(label);
+  }
+}
+
+function openCustomModal(editId=null) {
+  customEditId=editId;
+  const isEdit=editId!==null;
+  document.getElementById('custom-title').textContent=isEdit?'任意グラフ編集':'任意グラフ追加';
+  document.getElementById('btn-custom-save').textContent=isEdit?'更新':'追加';
+  const leftSel=document.getElementById('custom-left-kind');
+  const rightSel=document.getElementById('custom-right-kind');
+  leftSel.innerHTML=''; rightSel.innerHTML='<option value="">— なし —</option>';
+  for (const k of availKinds) {
+    const ol=document.createElement('option'); ol.value=k; ol.textContent=KIND_LABEL[k]; leftSel.appendChild(ol);
+    const or=document.createElement('option'); or.value=k; or.textContent=KIND_LABEL[k]; rightSel.appendChild(or);
+  }
+  let cfg=null;
+  if (isEdit) {
+    cfg=customGraphs.find(g=>g.id===editId);
+    document.getElementById('custom-name-input').value=cfg?cfg.name:'';
+    if (cfg) { leftSel.value=cfg.left.kind; rightSel.value=cfg.right.kind||''; }
+  } else {
+    document.getElementById('custom-name-input').value='';
+    if (availKinds.length) leftSel.value=availKinds[0];
+  }
+  populateCustomChs('custom-left-chs',leftSel.value,cfg?.left?.chs||[]);
+  populateCustomChs('custom-right-chs',rightSel.value,cfg?.right?.chs||[]);
+  document.getElementById('custom-modal').classList.add('open');
+}
+
+function saveCustomGraph() {
+  const name=document.getElementById('custom-name-input').value.trim()||'任意グラフ';
+  const leftKind=document.getElementById('custom-left-kind').value;
+  const rightKind=document.getElementById('custom-right-kind').value;
+  const leftChs=[...document.querySelectorAll('#custom-left-chs input:checked')].map(cb=>cb.value);
+  const rightChs=rightKind?[...document.querySelectorAll('#custom-right-chs input:checked')].map(cb=>cb.value):[];
+  if (!leftKind||!leftChs.length) { alert('第1縦軸の種類とチャンネルを選択してください'); return; }
+  if (customEditId!==null) {
+    const idx=customGraphs.findIndex(g=>g.id===customEditId);
+    if (idx>=0) customGraphs[idx]={id:customEditId,name,left:{kind:leftKind,chs:leftChs},right:{kind:rightKind,chs:rightChs}};
+    curKind=customEditId;
+  } else {
+    const id=`CUSTOM_${customNextId++}`;
+    customGraphs.push({id,name,left:{kind:leftKind,chs:leftChs},right:{kind:rightKind,chs:rightChs}});
+    xScales[id]='log';
+    yScales[id]=DEFAULT_YSCALE[leftKind]||'linear';
+    y2Scales[id]=rightKind?(DEFAULT_YSCALE[rightKind]||'linear'):'linear';
+    axisRanges[id]={xmin:'',xmax:'',ymin:'',ymax:'',y2min:'',y2max:''};
+    curKind=id;
+  }
+  document.getElementById('custom-modal').classList.remove('open');
+  rebuildKindDropdown();
+  rebuildChannelPanel();
+  syncInputs();
+  redraw();
+}
+
+function deleteCustomGraph() {
+  if (!isCustomKind(curKind)) return;
+  const id=curKind;
+  const idx=customGraphs.findIndex(g=>g.id===id);
+  if (idx<0) return;
+  customGraphs.splice(idx,1);
+  delete xScales[id]; delete yScales[id]; delete y2Scales[id]; delete axisRanges[id];
+  curKind=availKinds[0]||null;
+  rebuildKindDropdown();
+  if (curKind) { syncInputs(); rebuildChannelPanel(); redraw(); }
 }
 
 // ── Plotly helpers ────────────────────────────────────────────────────────────
 function buildLayout() {
   const k=curKind, r=axisRanges[k]||{};
   const xs=xScales[k]||'log', ys=yScales[k]||'linear';
-  const meta0=allData[k]?.[0]?.meta||{};
+  const custom=isCustomKind(k), cfg=custom?customGraphs.find(g=>g.id===k):null;
+  const leftKind=custom?cfg?.left?.kind:k;
+  const meta0=allData[leftKind]?.[0]?.meta||{};
   const xUnit=meta0.x_unit||'Hz', yUnit=meta0.y_unit||'', sub=meta0.sub_type||'';
   const yLabel=yUnit?`${sub} (${yUnit})`:sub||'Value';
+  const titleText=custom?(cfg?.name||k):(KIND_LABEL[k]||k);
+  const hasY2=custom&&!!(cfg?.right?.kind);
+  const y2s=hasY2?(y2Scales[k]||'linear'):'linear';
+  const meta2=hasY2?(allData[cfg.right.kind]?.[0]?.meta||{}):{};
+  const y2Label=(meta2.y_unit?`${meta2.sub_type||''} (${meta2.y_unit})`:meta2.sub_type||'Y2');
 
   const layout={
-    title:{text:KIND_LABEL[k]||k,font:{size:14}},
+    title:{text:titleText,font:{size:14}},
     xaxis:{title:`Frequency (${xUnit})`,type:xs==='log'?'log':'linear',gridcolor:'#ddd',showgrid:true,
            ...(xs==='log'?{exponentformat:'none',minor:{showgrid:true,gridcolor:'#e8e8e8',ticks:'',dtick:'D1'}}:{})},
     yaxis:{title:yLabel,type:ys==='log'?'log':'linear',gridcolor:'#ddd',showgrid:true,
            ...(ys==='log'?{exponentformat:'none',minor:{showgrid:true,gridcolor:'#e8e8e8',ticks:'',dtick:'D1'}}:{})},
-    margin:{l:65,r:20,t:46,b:50},
+    margin:{l:65,r:hasY2?72:20,t:46,b:50},
     hovermode:'x',showlegend:false,
     plot_bgcolor:'#fff',paper_bgcolor:'#fff',
     shapes:[],annotations:[],
   };
+
+  // Y2 axis (custom kinds only)
+  if (hasY2) {
+    layout.yaxis2={
+      title:y2Label, type:y2s==='log'?'log':'linear',
+      overlaying:'y', side:'right', gridcolor:'#ddd', showgrid:false,
+      ...(y2s==='log'?{exponentformat:'none',minor:{showgrid:true,gridcolor:'#f0d8d8',ticks:'',dtick:'D1'}}:{})
+    };
+    const y2min=parseFloat(r.y2min), y2max=parseFloat(r.y2max);
+    if(!isNaN(y2min)&&!isNaN(y2max)&&y2max>y2min)
+      layout.yaxis2.range=y2s==='log'?[Math.log10(Math.max(y2min,1e-99)),Math.log10(y2max)]:[y2min,y2max];
+    else if(!isNaN(y2min)) layout.yaxis2.range=[y2s==='log'?Math.log10(Math.max(y2min,1e-99)):y2min,undefined];
+    else if(!isNaN(y2max)) layout.yaxis2.range=[undefined,y2s==='log'?Math.log10(y2max):y2max];
+  }
+
   // X range
   const xmin=parseFloat(r.xmin), xmax=parseFloat(r.xmax);
   if (!isNaN(xmin)&&!isNaN(xmax)&&xmax>xmin) {
     layout.xaxis.range=xs==='log'?[Math.log10(Math.max(xmin,1e-99)),Math.log10(xmax)]:[xmin,xmax];
   } else {
-    const entries=allData[k]||[];
+    const entries=custom
+      ?[...(allData[cfg?.left?.kind]||[]),...(cfg?.right?.kind?allData[cfg.right.kind]||[]:[]) ]
+      :(allData[k]||[]);
     let fmin=Infinity,fmax=-Infinity;
     for(const e of entries){
       const fm=isNaN(e.meta.freq_min)?e.freqs[0]:e.meta.freq_min;
@@ -683,7 +901,6 @@ function buildLayout() {
       const alpha=Math.min(0.18+r2.score*0.07,0.75);
       layout.shapes.push({type:'line',x0:r2.freq,x1:r2.freq,y0:0,y1:1,yref:'paper',
         line:{color:r2.color,width:1,dash:'dot'},opacity:alpha});
-      // y:1 (paper top) + yshift:-52px → 6px below the 46px title margin, inside plot area
       layout.annotations.push({x:r2.freq,xref:'x',y:1,yref:'paper',yshift:-52,
         text:`[${i+1}] ${r2.freq.toFixed(0)}Hz`,showarrow:false,textangle:-90,
         font:{size:9,color:r2.color},xanchor:'center',yanchor:'top',
@@ -699,6 +916,28 @@ function buildLayout() {
 }
 
 function buildTraces() {
+  if (isCustomKind(curKind)) {
+    const cfg=customGraphs.find(g=>g.id===curKind);
+    if (!cfg) return [];
+    const traces=[];
+    for (const e of (allData[cfg.left.kind]||[])) {
+      if (!cfg.left.chs.includes(e.ch)) continue;
+      traces.push({x:e.freqs,y:e.vals,name:e.ch,type:'scatter',mode:'lines',
+        line:{color:e.color,width:1.5},visible:chVisible[e.ch]!==false,
+        hovertemplate:`%{y:.3e}<extra>${e.ch} [Y1]</extra>`});
+    }
+    if (cfg.right.kind) {
+      for (const e of (allData[cfg.right.kind]||[])) {
+        if (!cfg.right.chs.includes(e.ch)) continue;
+        traces.push({x:e.freqs,y:e.vals,name:`${e.ch} [Y2]`,type:'scatter',mode:'lines',
+          line:{color:e.color,width:1.5,dash:'dot'},yaxis:'y2',
+          visible:chVisible[e.ch]!==false,
+          hovertemplate:`%{y:.3e}<extra>${e.ch} [Y2]</extra>`});
+      }
+    }
+    return traces;
+  }
+
   const traces=(allData[curKind]||[]).map(e=>({
     x:e.freqs, y:e.vals, name:e.ch, type:'scatter', mode:'lines',
     line:{color:e.color,width:1},
@@ -734,11 +973,24 @@ function buildTraces() {
 
 function redraw() {
   if (!curKind) return;
-  const ys=yScales[curKind]||'linear';
-  // disable log if negative values
-  if (ys==='log') {
-    const hasNeg=(allData[curKind]||[]).some(e=>e.vals.some(v=>v<=0));
-    if (hasNeg) { yScales[curKind]='linear'; }
+  if (isCustomKind(curKind)) {
+    const cfg=customGraphs.find(g=>g.id===curKind);
+    if (cfg) {
+      if ((yScales[curKind]||'linear')==='log') {
+        const hasNeg=(allData[cfg.left.kind]||[]).filter(e=>cfg.left.chs.includes(e.ch)).some(e=>e.vals.some(v=>v<=0));
+        if (hasNeg) yScales[curKind]='linear';
+      }
+      if (cfg.right.kind && (y2Scales[curKind]||'linear')==='log') {
+        const hasNeg2=(allData[cfg.right.kind]||[]).filter(e=>cfg.right.chs.includes(e.ch)).some(e=>e.vals.some(v=>v<=0));
+        if (hasNeg2) y2Scales[curKind]='linear';
+      }
+    }
+  } else {
+    const ys=yScales[curKind]||'linear';
+    if (ys==='log') {
+      const hasNeg=(allData[curKind]||[]).some(e=>e.vals.some(v=>v<=0));
+      if (hasNeg) yScales[curKind]='linear';
+    }
   }
   Plotly.react('plot', buildTraces(), buildLayout(),
     {responsive:true,displayModeBar:true,modeBarButtonsToRemove:['lasso2d','select2d','autoScale2d']});
@@ -791,11 +1043,29 @@ function updateCursorAt(x, locked) {
   const col=locked?'#cc4400':'#1155cc';
   document.getElementById('cursor-freq').textContent=`${x.toFixed(2)} Hz`;
   document.getElementById('cursor-freq').style.color=col;
+  if (isCustomKind(curKind)) {
+    const cfg=customGraphs.find(g=>g.id===curKind);
+    if (!cfg) return;
+    for (const e of (allData[cfg.left.kind]||[]).filter(e=>cfg.left.chs.includes(e.ch))) {
+      if (chVisible[e.ch]===false) continue;
+      const el=document.getElementById(`chval-${CSS.escape(e.ch)}`); if(!el) continue;
+      const v=interp1d(x,e.freqs,e.vals); const u=e.meta.y_unit||'';
+      el.textContent=isNaN(v)?'—':`${v.toExponential(3)}${u?' '+u:''}`;
+    }
+    if (cfg.right.kind) {
+      for (const e of (allData[cfg.right.kind]||[]).filter(e=>cfg.right.chs.includes(e.ch))) {
+        if (chVisible[e.ch]===false) continue;
+        const el=document.getElementById(`chval-y2-${CSS.escape(e.ch)}`); if(!el) continue;
+        const v=interp1d(x,e.freqs,e.vals); const u=e.meta.y_unit||'';
+        el.textContent=isNaN(v)?'—':`${v.toExponential(3)}${u?' '+u:''}`;
+      }
+    }
+    return;
+  }
   const entries=allData[curKind]||[];
   for (const e of entries) {
     if (chVisible[e.ch]===false) continue;
-    const id=`chval-${CSS.escape(e.ch)}`;
-    const el=document.getElementById(id); if(!el) continue;
+    const el=document.getElementById(`chval-${CSS.escape(e.ch)}`); if(!el) continue;
     const v=interp1d(x,e.freqs,e.vals);
     const u=e.meta.y_unit||'';
     el.textContent=isNaN(v)?'—':`${v.toExponential(3)}${u?' '+u:''}`;
@@ -811,6 +1081,33 @@ function rebuildChannelPanel() {
   const list=document.getElementById('channels-list');
   list.innerHTML='';
   if (!curKind) return;
+
+  if (isCustomKind(curKind)) {
+    const cfg=customGraphs.find(g=>g.id===curKind);
+    if (!cfg) return;
+    const addRows=(entries,filteredChs,tag,tagCls,idPfx='chval')=>{
+      const seen=new Set();
+      for (const e of entries) {
+        if (!filteredChs.includes(e.ch)||seen.has(e.ch)) continue; seen.add(e.ch);
+        const vis=chVisible[e.ch]!==false;
+        const row=document.createElement('div'); row.className='ch-row'; row.dataset.ch=e.ch;
+        const sw=document.createElement('div'); sw.className='ch-swatch';
+        sw.style.background=vis?e.color:'#ccc'; sw.style.borderColor=vis?'#333':'#aaa';
+        if (idPfx==='chval-y2') { sw.style.borderStyle='dashed'; sw.style.borderWidth='2px'; }
+        const nm=document.createElement('span'); nm.className='ch-name'; nm.textContent=e.ch; nm.style.opacity=vis?'1':'0.35';
+        const badge=document.createElement('span'); badge.className=`ch-axis-tag ${tagCls}`; badge.textContent=tag;
+        const vl=document.createElement('span'); vl.className='ch-val';
+        vl.id=`${idPfx}-${CSS.escape(e.ch)}`; vl.textContent='—'; vl.style.color=e.color; vl.style.opacity=vis?'1':'0.35';
+        row.append(sw,nm,badge,vl);
+        row.addEventListener('click',()=>toggleCh(e.ch));
+        list.appendChild(row);
+      }
+    };
+    addRows(allData[cfg.left.kind]||[],cfg.left.chs,'Y1','ch-axis-y1');
+    if (cfg.right.kind) addRows(allData[cfg.right.kind]||[],cfg.right.chs,'Y2','ch-axis-y2','chval-y2');
+    return;
+  }
+
   const seen=new Set();
   for (const e of (allData[curKind]||[])) {
     if (seen.has(e.ch)) continue; seen.add(e.ch);
@@ -837,6 +1134,7 @@ function toggleCh(ch) {
     row.querySelector('.ch-name').style.opacity=vis?'1':'0.35';
     row.querySelector('.ch-val').style.opacity=vis?'1':'0.35';
   });
+  if (isCustomKind(curKind)) { redraw(); return; }
   const indices=(allData[curKind]||[]).reduce((a,e,i)=>{if(e.ch===ch)a.push(i);return a;},[]);
   if (indices.length) Plotly.restyle('plot',{visible:vis===false?false:true},indices);
 }
@@ -849,6 +1147,12 @@ function updateScaleButtons() {
   document.getElementById('btn-xlin').classList.toggle('active',xs==='linear');
   document.getElementById('btn-ylog').classList.toggle('active',ys==='log');
   document.getElementById('btn-ylin').classList.toggle('active',ys==='linear');
+  const isCustom=isCustomKind(curKind);
+  if (isCustom) {
+    const y2s=y2Scales[curKind]||'linear';
+    document.getElementById('btn-y2log').classList.toggle('active',y2s==='log');
+    document.getElementById('btn-y2lin').classList.toggle('active',y2s==='linear');
+  }
 }
 
 // ── Axis inputs sync ──────────────────────────────────────────────────────────
@@ -859,6 +1163,8 @@ function saveInputs() {
     xmax:document.getElementById('tb-xmax').value,
     ymin:document.getElementById('tb-ymin').value,
     ymax:document.getElementById('tb-ymax').value,
+    y2min:document.getElementById('tb-y2min').value,
+    y2max:document.getElementById('tb-y2max').value,
   };
 }
 function syncInputs() {
@@ -868,6 +1174,11 @@ function syncInputs() {
   document.getElementById('tb-xmax').value=r.xmax||'';
   document.getElementById('tb-ymin').value=r.ymin||'';
   document.getElementById('tb-ymax').value=r.ymax||'';
+  document.getElementById('tb-y2min').value=r.y2min||'';
+  document.getElementById('tb-y2max').value=r.y2max||'';
+  const isCustom=isCustomKind(curKind);
+  document.getElementById('y2-section').style.display=isCustom?'block':'none';
+  document.getElementById('btn-custom-delete').style.display=isCustom?'':'none';
 }
 
 // ── Resonance result modal ────────────────────────────────────────────────────
@@ -956,11 +1267,26 @@ document.getElementById('btn-xlog').addEventListener('click',()=>{ if(curKind){x
 document.getElementById('btn-xlin').addEventListener('click',()=>{ if(curKind){xScales[curKind]='linear'; redraw();} });
 document.getElementById('btn-ylog').addEventListener('click',()=>{ if(curKind){yScales[curKind]='log'; redraw();} });
 document.getElementById('btn-ylin').addEventListener('click',()=>{ if(curKind){yScales[curKind]='linear'; redraw();} });
+document.getElementById('btn-y2log').addEventListener('click',()=>{ if(isCustomKind(curKind)){y2Scales[curKind]='log'; redraw();} });
+document.getElementById('btn-y2lin').addEventListener('click',()=>{ if(isCustomKind(curKind)){y2Scales[curKind]='linear'; redraw();} });
 
 document.getElementById('btn-apply').addEventListener('click',()=>{ saveInputs(); redraw(); });
-['tb-xmin','tb-xmax','tb-ymin','tb-ymax'].forEach(id=>{
+['tb-xmin','tb-xmax','tb-ymin','tb-ymax','tb-y2min','tb-y2max'].forEach(id=>{
   document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter'){saveInputs();redraw();} });
 });
+
+// ── Custom graph modal events ─────────────────────────────────────────────────
+document.getElementById('btn-custom-add').addEventListener('click',()=>openCustomModal());
+document.getElementById('btn-custom-delete').addEventListener('click',deleteCustomGraph);
+document.getElementById('btn-custom-save').addEventListener('click',saveCustomGraph);
+document.getElementById('btn-custom-cancel').addEventListener('click',()=>document.getElementById('custom-modal').classList.remove('open'));
+document.getElementById('custom-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('custom-modal')) document.getElementById('custom-modal').classList.remove('open');
+});
+document.getElementById('custom-left-kind').addEventListener('change',()=>
+  populateCustomChs('custom-left-chs',document.getElementById('custom-left-kind').value));
+document.getElementById('custom-right-kind').addEventListener('change',()=>
+  populateCustomChs('custom-right-chs',document.getElementById('custom-right-kind').value));
 
 document.getElementById('btn-save').addEventListener('click', async ()=>{
   if (!curKind) return;
