@@ -390,6 +390,85 @@ function interp1d(x, xs, ys) {
 
 function isCustomKind(k) { return !!(k && k.startsWith('CUSTOM_')); }
 
+// ── Pseudo-log (symlog) helpers ───────────────────────────────────────────────
+// 変換: sign(v)·log10(1+|v|) — マイナス範囲も扱える疑似対数 (C=1 固定)
+function pseudoLog(v) {
+  return Math.sign(v) * Math.log10(1 + Math.abs(v));
+}
+// データにゼロ以下の値が含まれるか判定 (Y1)
+function kindHasNonPositive(kind) {
+  if (isCustomKind(kind)) {
+    const cfg = customGraphs.find(g => g.id === kind);
+    return (allData[cfg?.left?.kind]||[]).filter(e=>cfg?.left?.chs?.includes(e.ch)).some(e=>e.vals.some(v=>v<=0));
+  }
+  return (allData[kind]||[]).some(e=>e.vals.some(v=>v<=0));
+}
+// データにゼロ以下の値が含まれるか判定 (Y2)
+function kindHasNonPositiveY2(kind) {
+  const cfg = customGraphs.find(g => g.id === kind);
+  return (allData[cfg?.right?.kind]||[]).filter(e=>cfg?.right?.chs?.includes(e.ch)).some(e=>e.vals.some(v=>v<=0));
+}
+// 疑似対数軸用の目盛値・ラベルを生成
+// ゼロ・両端を確保し、残りを外側→内側の順でグリーディ追加することで
+// 0 付近の目盛り被りを防ぐ
+function buildSymlogTicks(vmin, vmax) {
+  const pmin = pseudoLog(vmin), pmax = pseudoLog(vmax);
+  const totalRange = Math.max(pmax - pmin, 1e-10);
+  const cands = [], seen = new Set();
+
+  function cand(v) {
+    const pv = pseudoLog(v);
+    if (pv < pmin - 1e-9 || pv > pmax + 1e-9) return;
+    const key = Math.round(pv * 1e7);
+    if (seen.has(key)) return; seen.add(key);
+    const av = Math.abs(v);
+    const label = v === 0 ? '0'
+      : av < 1e-3 || av >= 1e5 ? v.toExponential(0)
+      : String(+v.toPrecision(3));
+    cands.push({pv, v, label});
+  }
+
+  cand(0);
+  const maxAbs = Math.max(Math.abs(vmin), Math.abs(vmax));
+  if (maxAbs > 0) {
+    const expMax = Math.ceil(Math.log10(maxAbs + 1e-30));
+    const expMin = Math.max(-4, expMax - 7);
+    for (let e = expMin; e <= expMax; e++) {
+      for (const m of [1, 2, 5]) {
+        const v = m * Math.pow(10, e);
+        if (v > 0 && v <= maxAbs * 1.001) {
+          if (vmax >= v * 0.999) cand(v);
+          if (vmin <= -v * 0.999) cand(-v);
+        }
+      }
+    }
+  }
+  cands.sort((a, b) => a.pv - b.pv);
+  if (!cands.length) return {tickvals: [], ticktext: []};
+
+  // 最小間隔: 軸全体に目盛りが最大 ~10 個収まる余裕をもたせる
+  const minGap = totalRange / 10;
+
+  // ① ゼロ と 両端 (最大・最小) を先に確保
+  const kept = new Set();
+  const zeroCand = cands.find(c => c.v === 0);
+  if (zeroCand) kept.add(zeroCand);
+  kept.add(cands[0]);                    // 最もマイナス側
+  kept.add(cands[cands.length - 1]);     // 最もプラス側
+
+  // ② 残りの候補を |pv| 降順 (外側→内側) に処理し、
+  //    既保持ティックから minGap 以上離れていれば追加
+  const byAbs = [...cands].sort((a, b) => Math.abs(b.pv) - Math.abs(a.pv));
+  for (const c of byAbs) {
+    if (kept.has(c)) continue;
+    const tooClose = [...kept].some(r => Math.abs(r.pv - c.pv) < minGap);
+    if (!tooClose) kept.add(c);
+  }
+
+  const out = [...kept].sort((a, b) => a.pv - b.pv);
+  return {tickvals: out.map(p => p.pv), ticktext: out.map(p => p.label)};
+}
+
 // ── Peak finding ──────────────────────────────────────────────────────────────
 function findPeaks(arr, {prominence=0, distance=1}={}) {
   const raw=[];
@@ -840,13 +919,16 @@ function buildLayout() {
   const y2s=hasY2?(y2Scales[k]||'linear'):'linear';
   const meta2=hasY2?(allData[cfg.right.kind]?.[0]?.meta||{}):{};
   const y2Label=(meta2.y_unit?`${meta2.sub_type||''} (${meta2.y_unit})`:meta2.sub_type||'Y2');
+  // 負値を含む場合は Log 選択でも疑似対数 (sign(v)·log10(1+|v|)) を使用
+  const useSymY =ys==='log'&&kindHasNonPositive(k);
+  const useSymY2=hasY2&&y2s==='log'&&kindHasNonPositiveY2(k);
 
   const layout={
     title:{text:titleText,font:{size:14}},
     xaxis:{title:`Frequency (${xUnit})`,type:xs==='log'?'log':'linear',gridcolor:'#ddd',showgrid:true,
            ...(xs==='log'?{exponentformat:'none',minor:{showgrid:true,gridcolor:'#e8e8e8',ticks:'',dtick:'D1'}}:{})},
-    yaxis:{title:yLabel,type:ys==='log'?'log':'linear',gridcolor:'#ddd',showgrid:true,
-           ...(ys==='log'?{exponentformat:'none',minor:{showgrid:true,gridcolor:'#e8e8e8',ticks:'',dtick:'D1'}}:{})},
+    yaxis:{title:yLabel,type:useSymY?'linear':(ys==='log'?'log':'linear'),gridcolor:'#ddd',showgrid:true,
+           ...(!useSymY&&ys==='log'?{exponentformat:'none',minor:{showgrid:true,gridcolor:'#e8e8e8',ticks:'',dtick:'D1'}}:{})},
     margin:{l:65,r:hasY2?72:20,t:46,b:50},
     hovermode:'x',showlegend:false,
     plot_bgcolor:'#fff',paper_bgcolor:'#fff',
@@ -856,15 +938,29 @@ function buildLayout() {
   // Y2 axis (custom kinds only)
   if (hasY2) {
     layout.yaxis2={
-      title:y2Label, type:y2s==='log'?'log':'linear',
+      title:y2Label, type:useSymY2?'linear':(y2s==='log'?'log':'linear'),
       overlaying:'y', side:'right', gridcolor:'#ddd', showgrid:false,
-      ...(y2s==='log'?{exponentformat:'none',minor:{showgrid:true,gridcolor:'#f0d8d8',ticks:'',dtick:'D1'}}:{})
+      ...(!useSymY2&&y2s==='log'?{exponentformat:'none',minor:{showgrid:true,gridcolor:'#f0d8d8',ticks:'',dtick:'D1'}}:{})
     };
     const y2min=parseFloat(r.y2min), y2max=parseFloat(r.y2max);
-    if(!isNaN(y2min)&&!isNaN(y2max)&&y2max>y2min)
+    if (useSymY2) {
+      const y2Ents=(allData[cfg.right.kind]||[]).filter(e=>cfg.right.chs.includes(e.ch));
+      let dv2min=Infinity,dv2max=-Infinity;
+      for(const e of y2Ents){for(const v of e.vals){if(isFinite(v)&&v<dv2min)dv2min=v;if(isFinite(v)&&v>dv2max)dv2max=v;}}
+      const v2min=!isNaN(y2min)?y2min:(isFinite(dv2min)?dv2min:-10);
+      const v2max=!isNaN(y2max)?y2max:(isFinite(dv2max)?dv2max:10);
+      if(v2max>v2min){
+        const {tickvals:tv2,ticktext:tt2}=buildSymlogTicks(v2min,v2max);
+        layout.yaxis2.range=[pseudoLog(v2min),pseudoLog(v2max)];
+        layout.yaxis2.tickvals=tv2; layout.yaxis2.ticktext=tt2;
+      }
+    } else if(!isNaN(y2min)&&!isNaN(y2max)&&y2max>y2min) {
       layout.yaxis2.range=y2s==='log'?[Math.log10(Math.max(y2min,1e-99)),Math.log10(y2max)]:[y2min,y2max];
-    else if(!isNaN(y2min)) layout.yaxis2.range=[y2s==='log'?Math.log10(Math.max(y2min,1e-99)):y2min,undefined];
-    else if(!isNaN(y2max)) layout.yaxis2.range=[undefined,y2s==='log'?Math.log10(y2max):y2max];
+    } else if(!isNaN(y2min)) {
+      layout.yaxis2.range=[y2s==='log'?Math.log10(Math.max(y2min,1e-99)):y2min,undefined];
+    } else if(!isNaN(y2max)) {
+      layout.yaxis2.range=[undefined,y2s==='log'?Math.log10(y2max):y2max];
+    }
   }
 
   // X range
@@ -888,7 +984,18 @@ function buildLayout() {
   }
   // Y range
   const ymin=parseFloat(r.ymin), ymax=parseFloat(r.ymax);
-  if(!isNaN(ymin)&&!isNaN(ymax)&&ymax>ymin){
+  if (useSymY) {
+    const yEnts=custom?(allData[cfg?.left?.kind]||[]).filter(e=>cfg.left.chs.includes(e.ch)):(allData[k]||[]);
+    let dvmin=Infinity,dvmax=-Infinity;
+    for(const e of yEnts){for(const v of e.vals){if(isFinite(v)&&v<dvmin)dvmin=v;if(isFinite(v)&&v>dvmax)dvmax=v;}}
+    const vmin=!isNaN(ymin)?ymin:(isFinite(dvmin)?dvmin:-10);
+    const vmax=!isNaN(ymax)?ymax:(isFinite(dvmax)?dvmax:10);
+    if(vmax>vmin){
+      const {tickvals,ticktext}=buildSymlogTicks(vmin,vmax);
+      layout.yaxis.range=[pseudoLog(vmin),pseudoLog(vmax)];
+      layout.yaxis.tickvals=tickvals; layout.yaxis.ticktext=ticktext;
+    }
+  } else if(!isNaN(ymin)&&!isNaN(ymax)&&ymax>ymin){
     layout.yaxis.range=ys==='log'?[Math.log10(Math.max(ymin,1e-99)),Math.log10(ymax)]:[ymin,ymax];
   } else if(!isNaN(ymin)){
     layout.yaxis.range=[ys==='log'?Math.log10(Math.max(ymin,1e-99)):ymin, undefined];
@@ -920,39 +1027,53 @@ function buildTraces() {
     const cfg=customGraphs.find(g=>g.id===curKind);
     if (!cfg) return [];
     const traces=[];
+    const ys_c=yScales[curKind]||'linear';
+    const useSym_c=ys_c==='log'&&kindHasNonPositive(curKind);
     for (const e of (allData[cfg.left.kind]||[])) {
       if (!cfg.left.chs.includes(e.ch)) continue;
-      traces.push({x:e.freqs,y:e.vals,name:e.ch,type:'scatter',mode:'lines',
+      const yData=useSym_c?e.vals.map(v=>pseudoLog(v)):e.vals;
+      traces.push({x:e.freqs,y:yData,name:e.ch,type:'scatter',mode:'lines',
         line:{color:e.color,width:1.5},visible:chVisible[e.ch]!==false,
-        hovertemplate:`%{y:.3e}<extra>${e.ch} [Y1]</extra>`});
+        customdata:useSym_c?e.vals:undefined,
+        hovertemplate:useSym_c?`%{customdata:.3e}<extra>${e.ch} [Y1]</extra>`:`%{y:.3e}<extra>${e.ch} [Y1]</extra>`});
     }
     if (cfg.right.kind) {
+      const y2s_c=y2Scales[curKind]||'linear';
+      const useSym2_c=y2s_c==='log'&&kindHasNonPositiveY2(curKind);
       for (const e of (allData[cfg.right.kind]||[])) {
         if (!cfg.right.chs.includes(e.ch)) continue;
-        traces.push({x:e.freqs,y:e.vals,name:`${e.ch} [Y2]`,type:'scatter',mode:'lines',
+        const y2Data=useSym2_c?e.vals.map(v=>pseudoLog(v)):e.vals;
+        traces.push({x:e.freqs,y:y2Data,name:`${e.ch} [Y2]`,type:'scatter',mode:'lines',
           line:{color:e.color,width:1.5,dash:'dot'},yaxis:'y2',
           visible:chVisible[e.ch]!==false,
-          hovertemplate:`%{y:.3e}<extra>${e.ch} [Y2]</extra>`});
+          customdata:useSym2_c?e.vals:undefined,
+          hovertemplate:useSym2_c?`%{customdata:.3e}<extra>${e.ch} [Y2]</extra>`:`%{y:.3e}<extra>${e.ch} [Y2]</extra>`});
       }
     }
     return traces;
   }
 
+  const ys_r=yScales[curKind]||'linear';
+  const useSym_r=ys_r==='log'&&kindHasNonPositive(curKind);
   const traces=(allData[curKind]||[]).map(e=>({
-    x:e.freqs, y:e.vals, name:e.ch, type:'scatter', mode:'lines',
+    x:e.freqs,
+    y:useSym_r?e.vals.map(v=>pseudoLog(v)):e.vals,
+    name:e.ch, type:'scatter', mode:'lines',
     line:{color:e.color,width:1},
     visible:chVisible[e.ch]!==false,
-    hovertemplate:`%{y:.3e}<extra>${e.ch}</extra>`,
+    customdata:useSym_r?e.vals:undefined,
+    hovertemplate:useSym_r?`%{customdata:.3e}<extra>${e.ch}</extra>`:`%{y:.3e}<extra>${e.ch}</extra>`,
   }));
   if(curKind==='PSD'&&vibProfile.length>=2&&vibProfileVisible){
     const facPlus=Math.pow(10,vibTolPlus/10);
     const facMinus=Math.pow(10,vibTolMinus/10);
     const pf0=vibProfile[0].freq,pfN=vibProfile[vibProfile.length-1].freq;
-    // Tolerance band (filled region)
     const N=400,bx=[],bu=[],bl=[];
     for(let i=0;i<=N;i++){
       const f=Math.pow(10,Math.log10(pf0)+(Math.log10(pfN)-Math.log10(pf0))*i/N);
-      const v=vibInterp(f); bx.push(f); bu.push(v*facPlus); bl.push(v/facMinus);
+      const v=vibInterp(f); bx.push(f);
+      bu.push(useSym_r?pseudoLog(v*facPlus):v*facPlus);
+      bl.push(useSym_r?pseudoLog(v/facMinus):v/facMinus);
     }
     traces.push({
       x:[...bx,...bx.slice().reverse()],y:[...bu,...bl.slice().reverse()],
@@ -960,9 +1081,9 @@ function buildTraces() {
       line:{color:'rgba(34,170,68,0.25)',width:1},mode:'lines',
       hoverinfo:'none',showlegend:false,type:'scatter',
     });
-    // Profile line
     traces.push({
-      x:vibProfile.map(p=>p.freq),y:vibProfile.map(p=>p.psd),
+      x:vibProfile.map(p=>p.freq),
+      y:vibProfile.map(p=>useSym_r?pseudoLog(p.psd):p.psd),
       name:'加振プロファイル',type:'scatter',mode:'lines+markers',
       line:{color:'#22aa44',width:2.5},marker:{color:'#22aa44',size:5},
       hovertemplate:'%{y:.3e}<extra>加振プロファイル</extra>',
@@ -973,25 +1094,7 @@ function buildTraces() {
 
 function redraw() {
   if (!curKind) return;
-  if (isCustomKind(curKind)) {
-    const cfg=customGraphs.find(g=>g.id===curKind);
-    if (cfg) {
-      if ((yScales[curKind]||'linear')==='log') {
-        const hasNeg=(allData[cfg.left.kind]||[]).filter(e=>cfg.left.chs.includes(e.ch)).some(e=>e.vals.some(v=>v<=0));
-        if (hasNeg) yScales[curKind]='linear';
-      }
-      if (cfg.right.kind && (y2Scales[curKind]||'linear')==='log') {
-        const hasNeg2=(allData[cfg.right.kind]||[]).filter(e=>cfg.right.chs.includes(e.ch)).some(e=>e.vals.some(v=>v<=0));
-        if (hasNeg2) y2Scales[curKind]='linear';
-      }
-    }
-  } else {
-    const ys=yScales[curKind]||'linear';
-    if (ys==='log') {
-      const hasNeg=(allData[curKind]||[]).some(e=>e.vals.some(v=>v<=0));
-      if (hasNeg) yScales[curKind]='linear';
-    }
-  }
+  // 負値があっても Log のまま維持 — buildLayout/buildTraces 側で疑似対数に自動切替
   Plotly.react('plot', buildTraces(), buildLayout(),
     {responsive:true,displayModeBar:true,modeBarButtonsToRemove:['lasso2d','select2d','autoScale2d']});
   updateScaleButtons();
@@ -1142,7 +1245,7 @@ function toggleCh(ch) {
 // ── Scale buttons ─────────────────────────────────────────────────────────────
 function updateScaleButtons() {
   if (!curKind) return;
-  const xs=xScales[curKind], ys=yScales[curKind];
+  const xs=xScales[curKind], ys=yScales[curKind]||'linear';
   document.getElementById('btn-xlog').classList.toggle('active',xs==='log');
   document.getElementById('btn-xlin').classList.toggle('active',xs==='linear');
   document.getElementById('btn-ylog').classList.toggle('active',ys==='log');
