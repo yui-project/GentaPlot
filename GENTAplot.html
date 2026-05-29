@@ -97,10 +97,8 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
 #vib-footer button:hover{background:#ddd}
 #btn-vib-apply{background:#c8eac8}
 #btn-vib-apply:hover{background:#a0d4a0}
-#btn-vib-check-top,#btn-vib-rms-top,#btn-vib-visible{background:#c8eac8}
-#btn-vib-check-top:hover:not(:disabled),#btn-vib-rms-top:hover:not(:disabled),#btn-vib-visible:hover:not(:disabled){background:#a0d4a0}
-#btn-vib-visible.vib-vis-on{background:#3faa5f;color:#fff;border-color:#2a7a40}
-#btn-vib-visible.vib-vis-on:hover:not(:disabled){background:#2d8048}
+#btn-vib-check-top,#btn-vib-rms-top{background:#c8eac8}
+#btn-vib-check-top:hover:not(:disabled),#btn-vib-rms-top:hover:not(:disabled){background:#a0d4a0}
 /* Check / RMS result modals */
 #check-modal,#rms-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:210;align-items:center;justify-content:center}
 #check-modal.open,#rms-modal.open{display:flex}
@@ -161,7 +159,6 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
   <button id="btn-vib-profile" class="top-btn" disabled>加振プロファイル</button>
   <button id="btn-vib-check-top" class="top-btn" disabled>許容範囲チェック</button>
   <button id="btn-vib-rms-top" class="top-btn" disabled>RMS 算出</button>
-  <button id="btn-vib-visible" class="top-btn vib-vis-on" disabled>プロファイル ON</button>
   <button id="btn-resonance" class="top-btn" disabled>ピーク解析</button>
   <button id="btn-clear-ann" class="top-btn" disabled>アノテーション削除</button>
 </div>
@@ -502,6 +499,7 @@ function parseVtFile(text) {
       else if (k==='Frequency') { meta.freq_min=parseFloat(rest[0]); meta.freq_max=parseFloat(rest[1]); }
       else if (k==='X-AxisUnit') meta.x_unit=rest[0];
       else if (k==='Y-AxisUnit') meta.y_unit=rest[0];
+      else if (k==='Y-AxisMagnitude') meta.y_magnitude=rest[0];
       continue;
     }
     if (parts.length>=2) {
@@ -555,7 +553,6 @@ async function loadFiles(fileList) {
     document.getElementById('btn-vib-profile').disabled=false;
     document.getElementById('btn-vib-check-top').disabled=false;
     document.getElementById('btn-vib-rms-top').disabled=false;
-    document.getElementById('btn-vib-visible').disabled=false;
   }
   document.getElementById('upload-prompt').style.display='none';
   document.getElementById('plot').style.display='block';
@@ -734,6 +731,7 @@ function applyVibAndRedraw() {
   vibProfile=readVibRows();
   vibTolPlus=parseFloat(document.getElementById('vib-db-plus').value)||3;
   vibTolMinus=parseFloat(document.getElementById('vib-db-minus').value)||3;
+  rebuildChannelPanel();
   redraw();
 }
 
@@ -913,7 +911,14 @@ function buildLayout() {
   const leftKind=custom?cfg?.left?.kind:k;
   const meta0=allData[leftKind]?.[0]?.meta||{};
   const xUnit=meta0.x_unit||'Hz', yUnit=meta0.y_unit||'', sub=meta0.sub_type||'';
-  const yLabel=yUnit?`${sub} (${yUnit})`:sub||'Value';
+  // PSD 時は Y-AxisMagnitude の値で軸ラベルを決定 (0-p=Acceleration, その他またはヘッダなし=PSD)
+  let yLabel;
+  if (leftKind==='PSD') {
+    const ym=(meta0.y_magnitude||'').trim().toLowerCase();
+    yLabel = (ym==='0-p') ? 'Acceleration [G]' : 'PSD [G²/Hz]';
+  } else {
+    yLabel=yUnit?`${sub} (${yUnit})`:sub||'Value';
+  }
   const titleText=custom?(cfg?.name||k):(KIND_LABEL[k]||k);
   const hasY2=custom&&!!(cfg?.right?.kind);
   const y2s=hasY2?(y2Scales[k]||'linear'):'linear';
@@ -1173,6 +1178,14 @@ function updateCursorAt(x, locked) {
     const u=e.meta.y_unit||'';
     el.textContent=isNaN(v)?'—':`${v.toExponential(3)}${u?' '+u:''}`;
   }
+  // 加振プロファイルのカーソル値
+  if (curKind==='PSD' && vibProfile.length>=2) {
+    const vibEl=document.getElementById('chval-vib-profile');
+    if (vibEl) {
+      const vv=vibProfileVisible?vibInterp(x):null;
+      vibEl.textContent=(vv!=null&&isFinite(vv))?vv.toExponential(3):'—';
+    }
+  }
 }
 
 function resetChVals() {
@@ -1211,6 +1224,22 @@ function rebuildChannelPanel() {
     return;
   }
 
+  // 加振プロファイル行 (PSD 表示中かつプロファイル設定済み) — CH1 の上に配置
+  if (curKind==='PSD' && vibProfile.length>=2) {
+    const VIB_COLOR='#22aa44';
+    const vis=vibProfileVisible;
+    const row=document.createElement('div'); row.className='ch-row'; row.dataset.ch='__vib_profile__';
+    const sw=document.createElement('div'); sw.className='ch-swatch';
+    sw.style.background=vis?VIB_COLOR:'#ccc'; sw.style.borderColor=vis?'#333':'#aaa';
+    sw.style.borderStyle='dashed';
+    const nm=document.createElement('span'); nm.className='ch-name'; nm.textContent='Vibration Profile'; nm.style.opacity=vis?'1':'0.35';
+    const vl=document.createElement('span'); vl.className='ch-val';
+    vl.id='chval-vib-profile'; vl.textContent='—'; vl.style.color=VIB_COLOR; vl.style.opacity=vis?'1':'0.35';
+    row.append(sw,nm,vl);
+    row.addEventListener('click',()=>toggleCh('__vib_profile__'));
+    list.appendChild(row);
+  }
+
   const seen=new Set();
   for (const e of (allData[curKind]||[])) {
     if (seen.has(e.ch)) continue; seen.add(e.ch);
@@ -1228,6 +1257,17 @@ function rebuildChannelPanel() {
 }
 
 function toggleCh(ch) {
+  if (ch==='__vib_profile__') {
+    vibProfileVisible=!vibProfileVisible;
+    const vis=vibProfileVisible;
+    document.querySelectorAll('.ch-row[data-ch="__vib_profile__"]').forEach(row=>{
+      row.querySelector('.ch-swatch').style.background=vis?'#22aa44':'#ccc';
+      row.querySelector('.ch-swatch').style.borderColor=vis?'#333':'#aaa';
+      row.querySelector('.ch-name').style.opacity=vis?'1':'0.35';
+      row.querySelector('.ch-val').style.opacity=vis?'1':'0.35';
+    });
+    redraw(); return;
+  }
   chVisible[ch]=chVisible[ch]===false?true:false;
   const vis=chVisible[ch];
   document.querySelectorAll(`.ch-row[data-ch]`).forEach(row=>{
@@ -1427,13 +1467,6 @@ document.getElementById('res-modal').addEventListener('click',e=>{
 document.getElementById('btn-vib-profile').addEventListener('click', openVibModal);
 document.getElementById('btn-vib-check-top').addEventListener('click', runVibCheck);
 document.getElementById('btn-vib-rms-top').addEventListener('click', runVibRMS);
-document.getElementById('btn-vib-visible').addEventListener('click', ()=>{
-  vibProfileVisible=!vibProfileVisible;
-  const btn=document.getElementById('btn-vib-visible');
-  btn.textContent=vibProfileVisible?'プロファイル ON':'プロファイル OFF';
-  btn.classList.toggle('vib-vis-on',vibProfileVisible);
-  redraw();
-});
 document.getElementById('btn-vib-addrow').addEventListener('click', ()=>addVibRow());
 document.getElementById('btn-vib-apply').addEventListener('click', ()=>{
   applyVibAndRedraw();
