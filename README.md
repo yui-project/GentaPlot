@@ -1,3 +1,5 @@
+[![Launch GentaPlot](https://img.shields.io/badge/Launch_GentaPlot-▶-00C1D4?style=for-the-badge)](https://yui-project.github.io/GentaPlot/)
+
 # GentaPlot
 ONOSOKKI DS2000（Graduo）で記録した波形データ（txtファイル）をプロットするWebアプリ
 
