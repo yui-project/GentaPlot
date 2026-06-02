@@ -140,6 +140,16 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
 .ch-axis-tag{font-size:9px;padding:1px 3px;border-radius:2px;font-weight:bold;flex-shrink:0}
 .ch-axis-y1{background:#c4dcf2;color:#224488}
 .ch-axis-y2{background:#f2c4dc;color:#882244}
+/* Files list popup */
+#btn-files-list{background:#ddeedd;font-size:11px;padding:3px 7px}
+#btn-files-list:hover:not(:disabled){background:#b8d8b8}
+#files-popup{display:none;position:fixed;z-index:300;background:#fff;border:1px solid #bbb;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,.2);min-width:360px;max-width:520px;max-height:320px;overflow-y:auto;font-size:11px}
+#files-popup-hdr{padding:6px 10px;font-weight:bold;color:#336;border-bottom:1px solid #eee;background:#f4f8f4;position:sticky;top:0}
+.fl-row{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;padding:4px 10px;border-bottom:1px solid #f0f0f0}
+.fl-row:last-child{border-bottom:none}
+.fl-fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#222}
+.fl-ch{color:#446;font-family:Consolas,monospace;white-space:nowrap}
+.fl-kind{font-size:10px;padding:1px 4px;border-radius:2px;background:#e8e8e8;color:#444;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -150,6 +160,7 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#e0e0e0;display:flex
   <label id="file-label">ファイル選択…
     <input type="file" id="file-input" multiple accept=".txt,*" style="display:none">
   </label>
+  <button id="btn-files-list" class="top-btn" disabled title="読み込み済みファイル一覧">一覧 <span id="files-count">0</span></button>
   <span style="color:#bbb">|</span>
   <label style="font-size:12px">Graph Type:</label>
   <select id="kind-select" disabled><option>— ファイルを選択 —</option></select>
@@ -343,6 +354,7 @@ const STARS = ['','★','★★','★★★','★★★★','★★★★★'];
 // ── State ─────────────────────────────────────────────────────────────────────
 let allData = {};        // kind -> [{meta, freqs, vals, ch, color}]
 let availKinds = [];
+let loadedFileNames = []; // [{name, ch, kind}]
 let curKind = null;
 let chVisible = {};      // ch -> bool
 let chColors = {};       // ch -> hex
@@ -535,7 +547,10 @@ async function loadFiles(fileList) {
     if (chVisible[ch]===undefined) chVisible[ch]=true;
     if (!allData[kind]) allData[kind]=[];
     allData[kind].push({meta,freqs,vals,ch,color:chColors[ch]});
+    loadedFileNames.push({name:file.name,ch,kind});
   }
+  document.getElementById('files-count').textContent=loadedFileNames.length;
+  document.getElementById('btn-files-list').disabled=false;
   availKinds = KIND_ORDER.filter(k=>allData[k]);
   for (const k of availKinds) {
     if (!xScales[k]) xScales[k]='log';
@@ -1352,6 +1367,22 @@ function handleFiles(fileList) { if(fileList.length) loadFiles(fileList); }
 document.getElementById('file-input').addEventListener('change',e=>handleFiles(e.target.files));
 document.getElementById('file-input2').addEventListener('change',e=>handleFiles(e.target.files));
 
+document.getElementById('btn-files-list').addEventListener('click',e=>{
+  const popup=document.getElementById('files-popup');
+  if(popup.style.display==='block'){popup.style.display='none';return;}
+  const rect=e.currentTarget.getBoundingClientRect();
+  popup.style.left=rect.left+'px';
+  popup.style.top=(rect.bottom+4)+'px';
+  document.getElementById('files-popup-count').textContent=loadedFileNames.length;
+  const body=document.getElementById('files-popup-body');
+  body.innerHTML=loadedFileNames.map(f=>
+    `<div class="fl-row"><span class="fl-fname" title="${f.name}">${f.name}</span><span class="fl-ch">${f.ch}</span><span class="fl-kind">${KIND_LABEL[f.kind]||f.kind}</span></div>`
+  ).join('');
+  popup.style.display='block';
+  e.stopPropagation();
+});
+document.addEventListener('click',()=>{ document.getElementById('files-popup').style.display='none'; });
+
 // Drag & drop on plot-wrapper
 const wrapper=document.getElementById('plot-wrapper');
 wrapper.addEventListener('dragover',e=>{e.preventDefault();wrapper.style.outline='2px dashed #88b8e8';});
@@ -1490,5 +1521,10 @@ document.getElementById('rms-modal').addEventListener('click', e=>{
     document.getElementById('rms-modal').classList.remove('open');
 });
 </script>
+
+<div id="files-popup">
+  <div id="files-popup-hdr">読み込み済みファイル (<span id="files-popup-count">0</span> 件)</div>
+  <div id="files-popup-body"></div>
+</div>
 </body>
 </html>
